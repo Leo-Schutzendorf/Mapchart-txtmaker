@@ -286,7 +286,7 @@ output = {"groups": {
     "#4389e3": {"label": "Democratic 60-70%",  "paths": Democrat_60_70},
     "#1666cb": {"label": "Democratic 70-80%",  "paths": Democrat_70_80},
     "#0645b4": {"label": "Democratic 80-90%",  "paths": Democrat_80_90},
-    "#0044b4": {"label": "Democratic 90-100%", "paths": Democrat_90_100},
+    "#003ab4": {"label": "Democratic 90-100%", "paths": Democrat_90_100},
     "#ffccd0": {"label": "Republican 30-40%",  "paths": Republican_30_40},
     "#f2b3be": {"label": "Republican 40-50%",  "paths": Republican_40_50},
     "#e27f90": {"label": "Republican 50-60%",  "paths": Republican_50_60},
