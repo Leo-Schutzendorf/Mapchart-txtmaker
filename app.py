@@ -24,9 +24,18 @@ results_cache = {}
 # party's total before deciding a county winner.
 CSV_PATH = "2024results.csv"
 
-def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False):
-    """Load 2024 county results from the local CSV and bucket them for MapChart."""
+def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_shifts=None):
+    """Load 2024 county results from the local CSV and bucket them for MapChart.
+
+    state_shifts: dict mapping state name (e.g. "Alabama") to a signed integer
+    shift amount (-100..+100).  Positive = shift toward Republican, negative =
+    shift toward Democrat.  Applied to each county's raw Dem/Rep percentages
+    after normal bucketing; the county is removed from its original bucket and
+    re-inserted into the correct shifted one.
+    """
     import pandas as pd
+    if state_shifts is None:
+        state_shifts = {}
 
     # ── Vote-bucket lists ──────────────────────────────────────────────────────
     Republican_30_40 = []; Democrat_30_40 = []
@@ -116,6 +125,91 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False):
     for county in rows:
         bucket_county(county['County__State_Code'], county['Winner_Pct'], county['Winner'])
 
+    # ── Apply state-level shifts ───────────────────────────────────────────────
+    # For each shifted state, re-derive winner+pct for every county in that
+    # state from the raw Dem/Rep vote percentages, then move the county to the
+    # correct new bucket.  The shift is a signed percentage-point offset applied
+    # to the two-party split:
+    #   shifted_dem_pct = dem_pct + shift   (negative shift → more dem)
+    #   shifted_rep_pct = rep_pct - shift   (positive shift → more rep)
+    # Both are clamped so neither drops below 0, giving effective 100% caps.
+    if state_shifts:
+        # Build all bucket lists in order so we can search/remove by value
+        all_buckets = {
+            'Republican': [Republican_30_40, Republican_40_50, Republican_50_60,
+                           Republican_60_70, Republican_70_80, Republican_80_90,
+                           Republican_90_100],
+            'Democrat':   [Democrat_30_40, Democrat_40_50, Democrat_50_60,
+                           Democrat_60_70, Democrat_70_80, Democrat_80_90,
+                           Democrat_90_100],
+        }
+        bucket_ranges = [(30,40,0),(40,50,1),(50,60,2),(60,70,3),(70,80,4),(80,90,5),(90,101,6)]
+
+        # Index rows by County__State_Code for fast lookup
+        row_by_code = {r['County__State_Code']: r for r in rows}
+
+        for state_name, shift in state_shifts.items():
+            if shift == 0:
+                continue
+            # Find all counties belonging to this state (prefix = postal code + "__")
+            state_prefix = postalCodes.get(state_name)
+            if not state_prefix:
+                continue
+
+            for code, row in row_by_code.items():
+                # CSV county codes are "CountyName__ST" (double underscore + postal code)
+                if not code.endswith('__' + state_prefix):
+                    continue
+
+                try:
+                    dem_pct = float(row.get('Democrat_Pct') or 0)
+                    rep_pct = float(row.get('Republican_Pct') or 0)
+                except (ValueError, TypeError):
+                    continue
+
+                # Apply shift to the two-party split.
+                # shift > 0 → more Republican; shift < 0 → more Democrat.
+                new_dem = max(0.0, dem_pct - shift)
+                new_rep = max(0.0, rep_pct + shift)
+
+                # Clamp so neither exceeds 100
+                if new_rep > 100:
+                    new_rep = 100.0
+                    new_dem = 0.0
+                if new_dem > 100:
+                    new_dem = 100.0
+                    new_rep = 0.0
+
+                # Determine new winner and winning pct
+                if new_rep > new_dem:
+                    new_winner = 'Republican'
+                    new_pct = new_rep
+                elif new_dem > new_rep:
+                    new_winner = 'Democrat'
+                    new_pct = new_dem
+                else:
+                    # Exact tie — leave in tie bucket (don't move)
+                    continue
+
+                # Remove county from whichever bucket it's currently in
+                for party_buckets in all_buckets.values():
+                    for b in party_buckets:
+                        if code in b:
+                            b.remove(code)
+
+                # Also check tie list
+                if code in tie:
+                    tie.remove(code)
+
+                # Insert into the correct new bucket
+                for lo, hi, idx in bucket_ranges:
+                    if lo <= new_pct < hi:
+                        all_buckets[new_winner][idx].append(code)
+                        break
+                else:
+                    # 100% edge case — put in the top bucket
+                    all_buckets[new_winner][6].append(code)
+
     # ── Build final MapChart JSON output ───────────────────────────────────────
     output = {"groups": {
         "#d3e7ff": {"label": "Democratic 30-40%",  "paths": Democrat_30_40},
@@ -174,16 +268,23 @@ def index():
 
 @app.route("/api/results")
 def results():
-    """Check whether a cached result exists for this year + reassignment mode."""
-    year       = request.args.get("year", "").strip()
-    other_mode = request.args.get("otherMode", "none")  # "dem", "rep", or "none"
+    """Check whether a cached result exists for this year + reassignment mode + shifts."""
+    year        = request.args.get("year", "").strip()
+    other_mode  = request.args.get("otherMode", "none")  # "dem", "rep", or "none"
+    shifts_raw  = request.args.get("stateShifts", "{}")  # JSON string, e.g. '{"Alabama":30}'
 
     if not year.isdigit() or not (1788 <= int(year) <= 2100):
         return jsonify({"error": "Invalid year"}), 400
 
-    # Cache key includes reassignment mode so "1992 + otherAsDem" is stored
-    # separately from plain "1992".  To add more modes, extend this key.
-    cache_key = (year, other_mode)
+    try:
+        state_shifts = json.loads(shifts_raw)
+        # Normalise: drop zero-shift entries so cache keys match
+        state_shifts = {k: int(v) for k, v in state_shifts.items() if int(v) != 0}
+    except (ValueError, TypeError):
+        state_shifts = {}
+
+    # Cache key includes shifts so each unique combination is stored separately
+    cache_key = (year, other_mode, json.dumps(state_shifts, sort_keys=True))
     if cache_key in results_cache:
         return jsonify({"status": "cached", "data": results_cache[cache_key]})
 
@@ -195,40 +296,46 @@ def stream():
     """Server-Sent Events endpoint — streams progress updates then final data.
 
     Query parameters:
-      year      – four-digit election year (required)
-      otherMode – how to handle non-R/D votes:
-                    "dem"  → otherAsDem=True  (all third-party → Democrat)
-                    "rep"  → otherAsRep=True  (all third-party → Republican)
-                    "none" → show third parties separately (default)
-
-    To add a new reassignment option:
-      1. Add a new otherMode string here (e.g. "dem_only_perot")
-      2. Pass a new boolean to run_scraper()
-      3. Handle it in run_scraper's vote_map block
+      year        – four-digit election year (required)
+      otherMode   – how to handle non-R/D votes:
+                      "dem"  → otherAsDem=True
+                      "rep"  → otherAsRep=True
+                      "none" → show third parties separately (default)
+      stateShifts – JSON object mapping state names to signed integer shift
+                    amounts, e.g. '{"Alabama": 30}'.  Positive = toward
+                    Republican, negative = toward Democrat.
     """
-    year       = request.args.get("year", "").strip()
-    other_mode = request.args.get("otherMode", "none")
+    year        = request.args.get("year", "").strip()
+    other_mode  = request.args.get("otherMode", "none")
+    shifts_raw  = request.args.get("stateShifts", "{}")
 
     if not year.isdigit() or not (1788 <= int(year) <= 2100):
         def err():
             yield "data: " + json.dumps({"type": "error", "message": "Invalid year"}) + "\n\n"
         return Response(err(), mimetype="text/event-stream")
 
-    cache_key = (year, other_mode)
+    try:
+        state_shifts = json.loads(shifts_raw)
+        state_shifts = {k: int(v) for k, v in state_shifts.items() if int(v) != 0}
+    except (ValueError, TypeError):
+        state_shifts = {}
+
+    cache_key = (year, other_mode, json.dumps(state_shifts, sort_keys=True))
 
     if cache_key in results_cache:
         def cached():
             yield "data: " + json.dumps({"type": "done", "data": results_cache[cache_key]}) + "\n\n"
         return Response(cached(), mimetype="text/event-stream")
 
-    # Translate otherMode string → boolean flags for run_scraper
     otherAsDem = (other_mode == "dem")
     otherAsRep = (other_mode == "rep")
 
     progress_queue = queue.Queue()
 
     def scrape_thread():
-        run_scraper(year, progress_queue, otherAsDem=otherAsDem, otherAsRep=otherAsRep)
+        run_scraper(year, progress_queue,
+                    otherAsDem=otherAsDem, otherAsRep=otherAsRep,
+                    state_shifts=state_shifts)
 
     thread = threading.Thread(target=scrape_thread, daemon=True)
     thread.start()
