@@ -96,13 +96,13 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         "North_Carolina", "North_Dakota", "Ohio", "Oklahoma", "Oregon",
         "Pennsylvania", "Rhode_Island", "South_Carolina", "South_Dakota",
         "Tennessee", "Texas", "Utah", "Vermont", "Virginia",
-        "Washington_(state)", "West_Virginia", "Wisconsin", "Wyoming"
+        "Washington_state", "West_Virginia", "Wisconsin", "Wyoming"
     ]
     postalCodes = {
         "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR",
         "California": "CA", "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE",
-        "Florida": "FL", "Georgia": "GA", "Hawaii": "HI", "Idaho": "ID",
-        "Illinois": "IL", "Indiana": "IN", "Iowa": "IA", "Kansas": "KS",
+        "District_of_Columbia": "DC", "Florida": "FL", "Georgia": "GA", "Hawaii": "HI",
+        "Idaho": "ID", "Illinois": "IL", "Indiana": "IN", "Iowa": "IA", "Kansas": "KS",
         "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME", "Maryland": "MD",
         "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN", "Mississippi": "MS",
         "Missouri": "MO", "Montana": "MT", "Nebraska": "NE", "Nevada": "NV",
@@ -110,7 +110,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         "North_Carolina": "NC", "North_Dakota": "ND", "Ohio": "OH", "Oklahoma": "OK",
         "Oregon": "OR", "Pennsylvania": "PA", "Rhode_Island": "RI", "South_Carolina": "SC",
         "South_Dakota": "SD", "Tennessee": "TN", "Texas": "TX", "Utah": "UT",
-        "Vermont": "VT", "Virginia": "VA", "Washington_(state)": "WA",
+        "Vermont": "VT", "Virginia": "VA", "Washington_state": "WA",
         "West_Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY"
     }
 
