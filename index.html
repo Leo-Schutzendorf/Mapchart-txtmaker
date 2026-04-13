@@ -1,0 +1,1779 @@
+<!--IMPORTANT: In Terminal, run " C:/Users/leoth/AppData/Local/Python/pythoncore-3.14-64/python.exe c:/Users/leoth/Mapchart-txtmaker/app.py" to start the Flask server."""-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>U.S. Presidential Election Results by County</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ── Design tokens ─────────────────────────────────────────────────────────
+     To change the colour scheme, edit these CSS variables.
+     --dem / --rep / --other are used in the reassign screen pill colours.   */
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --border: #2a2a2a;
+    --text: #e8e2d9;
+    --muted: #666;
+    --accent: #c8a96e;
+    --dem: #4389e3;
+    --rep: #cc2f4a;
+    --other: #ff7f2a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ──────────────────────────────────────────────────────────────── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 2rem 3rem;
+    display: flex;
+    align-items: baseline;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    font-weight: 400;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  header p {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── Controls bar (main screen) ──────────────────────────────────────────── */
+  .controls {
+    padding: 1.5rem 3rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  label {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  input[type="number"] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.1rem;
+    padding: 0.5rem 0.8rem;
+    width: 110px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type="number"]:focus { border-color: var(--accent); }
+  input[type="number"]::-webkit-inner-spin-button { opacity: 0.3; }
+
+  /* Primary action button (Generate) */
+  button#go-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.55rem 1.4rem;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button#go-btn:hover { opacity: 0.85; }
+  button#go-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Secondary action buttons share a style */
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.55rem 1.2rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .btn-secondary:hover { color: var(--text); border-color: var(--text); }
+
+  /* Download button is hidden until results are ready */
+  button#download-btn { display: none; }
+
+  /* ── "Reassign" badge shown in the controls bar when a mode is active ────── */
+  #reassign-badge {
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    padding: 0.3rem 0.7rem;
+    border-radius: 2px;
+    display: none;          /* shown by JS when otherMode != "none" */
+  }
+  #reassign-badge.dem { background: #1a2e4a; color: var(--dem); border: 1px solid var(--dem); }
+  #reassign-badge.rep { background: #3a1020; color: var(--rep); border: 1px solid var(--rep); }
+
+  /* ── Progress bar ─────────────────────────────────────────────────────────── */
+  .progress-area {
+    padding: 1.5rem 3rem;
+    display: none;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .progress-bar-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    height: 4px;
+    width: 100%;
+    max-width: 500px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  .progress-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .progress-label span { color: var(--text); }
+
+  .dot-loader::after {
+    content: '';
+    animation: dots 1.2s steps(3, end) infinite;
+  }
+  @keyframes dots {
+    0%   { content: ''; }
+    33%  { content: '.'; }
+    66%  { content: '..'; }
+    100% { content: '...'; }
+  }
+
+  /* ── Warning messages ────────────────────────────────────────────────────── */
+  .warnings {
+    padding: 0 3rem;
+    display: none;
+    flex-direction: column;
+    gap: 0.3rem;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+  .warnings p {
+    font-size: 0.65rem;
+    color: #886644;
+    letter-spacing: 0.04em;
+  }
+  .warnings p::before { content: "⚠ "; }
+
+  /* ── Error message ───────────────────────────────────────────────────────── */
+  .error-msg {
+    padding: 1rem 3rem;
+    color: #cc4444;
+    font-size: 0.75rem;
+    display: none;
+  }
+
+  /* ── Output area ─────────────────────────────────────────────────────────── */
+  .output-area {
+    flex: 1;
+    padding: 1.5rem 3rem 2rem;
+    display: none;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .output-meta {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .output-meta strong { color: var(--accent); }
+
+  textarea#json-output {
+    flex: 1;
+    min-height: 340px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: #a8c4a8;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    line-height: 1.6;
+    padding: 1rem;
+    resize: vertical;
+    outline: none;
+    width: 100%;
+  }
+
+  .instructions {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 1rem 1.2rem;
+    font-size: 0.68rem;
+    line-height: 1.9;
+    color: var(--muted);
+    max-width: 640px;
+  }
+  .instructions strong { color: var(--text); }
+  .instructions a { color: var(--accent); }
+
+  /* ── Idle state ──────────────────────────────────────────────────────────── */
+  .status-idle {
+    padding: 3rem;
+    color: var(--muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+  }
+
+  /* ════════════════════════════════════════════════════════════════════════════
+     REASSIGN SCREEN
+     This entire panel slides in when the user clicks "Reassign other votes".
+     To add more reassignment options (e.g. split 50/50, or a named party),
+     add another .option-card block inside #reassign-screen and handle the new
+     value in applyReassign() below.
+     ════════════════════════════════════════════════════════════════════════════ */
+  #reassign-screen {
+    display: none;          /* toggled by showReassignScreen() / showMainScreen() */
+    flex-direction: column;
+    gap: 0;
+    flex: 1;
+  }
+
+  /* Top bar on the reassign screen — mirrors the main controls bar styling */
+  .reassign-topbar {
+    padding: 1.5rem 3rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  /* "← Back" button */
+  #back-btn {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.45rem 1rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  #back-btn:hover { color: var(--text); border-color: var(--text); }
+
+  .reassign-topbar h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: var(--accent);
+  }
+
+  /* Card grid */
+  .reassign-body {
+    padding: 2rem 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-width: 640px;
+  }
+
+  .reassign-description {
+    font-size: 0.7rem;
+    color: var(--muted);
+    line-height: 1.8;
+    letter-spacing: 0.04em;
+  }
+  .reassign-description strong { color: var(--text); }
+
+  /* Each option is a clickable card */
+  .option-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.1rem 1.4rem;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .option-card:hover { border-color: var(--accent); }
+
+  /* Highlight the currently selected card */
+  .option-card.selected { border-color: var(--accent); background: #1e1a12; }
+
+  /* Circular radio-style indicator */
+  .option-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    margin-top: 3px;
+    flex-shrink: 0;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .option-card.selected .option-dot { background: var(--accent); border-color: var(--accent); }
+
+  .option-text { display: flex; flex-direction: column; gap: 0.3rem; }
+
+  .option-title {
+    font-size: 0.8rem;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+
+  /* Coloured party pill inside card title row */
+  .party-pill {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 2px;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+  .party-pill.dem { background: #1a2e4a; color: var(--dem); border: 1px solid var(--dem); }
+  .party-pill.rep { background: #3a1020; color: var(--rep); border: 1px solid var(--rep); }
+
+  .option-desc {
+    font-size: 0.65rem;
+    color: var(--muted);
+    line-height: 1.7;
+    letter-spacing: 0.03em;
+  }
+
+  /* Apply button at the bottom of the reassign screen */
+  #apply-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.6rem 1.6rem;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    align-self: flex-start;
+  }
+  #apply-btn:hover { opacity: 0.85; }
+  /* Shift screen — mirrors reassign screen layout */
+  #shift-screen {
+    display: none;
+    flex-direction: column;
+    gap: 0;
+    flex: 1;
+  }
+  .shift-topbar {
+    padding: 1.5rem 3rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .shift-topbar h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: var(--accent);
+  }
+  .shift-description {
+    font-size: 0.7rem;
+    color: var(--muted);
+    line-height: 1.8;
+    letter-spacing: 0.04em;
+    padding: 2rem 3rem 1rem;
+    max-width: 640px;
+  }
+
+  /* ── Shift sliders.  Shift states by desired margins. ───────────────────────────────────────────────────────── */
+  .shift-sliders {
+    padding: 0 3rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    max-width: 700px;
+  }
+
+  .shift-row {
+    display: grid;
+    grid-template-columns: 130px 50px 1fr 50px 52px;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .shift-state-label {
+    font-size: 0.72rem;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+
+  .shift-dem-label {
+    font-size: 0.6rem;
+    color: var(--dem);
+    text-align: right;
+    letter-spacing: 0.04em;
+  }
+
+  .shift-rep-label {
+    font-size: 0.6rem;
+    color: var(--rep);
+    letter-spacing: 0.04em;
+  }
+
+  .shift-value {
+    font-size: 0.7rem;
+    color: var(--accent);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    min-width: 40px;
+  }
+
+  /* Range input styling */
+  .slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .slider::-webkit-slider-thumb:hover { background: var(--text); }
+  .slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+  }
+  /* ── Switch colors toggle ───────────────────────────────────────────────── */
+  .toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .toggle-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+  }
+  .toggle-track {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border);
+    border-radius: 20px;
+    transition: background 0.2s;
+  }
+  .toggle-track::before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background: var(--muted);
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-track { background: #2a2a1a; border: 1px solid var(--accent); }
+  .toggle-switch input:checked + .toggle-track::before { transform: translateX(16px); background: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ── Header (always visible) ──────────────────────────────────────────────── -->
+<header>
+  <h1>U.S. Presidential Election Results</h1>
+  <p>County-level data · sourced from Wikipedia</p>
+</header>
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     MAIN SCREEN
+     Contains: year input, Generate button, reassign badge, Download button,
+     progress bar, warnings, error, output textarea.
+     Hidden when the reassign screen is open.
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div id="main-screen">
+  <!-- Controls bar -->
+  <div class="controls">
+    <label for="year-input">Election year</label>
+    <input type="number" id="year-input" min="1788" max="2100" step="4" value="1988" placeholder="e.g. 1988">
+
+    <button id="go-btn">Generate</button>
+
+    <!--
+      Reassign badge: shows "OTHER → DEM" or "OTHER → REP" when a mode is active.
+      Clicking it re-opens the reassign screen for editing.
+      To add more modes, update the badge text logic in updateReassignBadge().
+    -->
+    <span id="reassign-badge" title="Click to change" style="cursor:pointer"></span>
+
+    <button id="customize-btn" class="btn-secondary">Reassign other votes</button>
+    <button id="shift-btn" class="btn-secondary">Shift states</button>
+
+    <div class="toggle-wrap">
+      <span class="toggle-label">Switch colors</span>
+      <label class="toggle-switch" title="Swap Democrat/Republican colors">
+        <input type="checkbox" id="switch-colors-toggle">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+
+    <button id="download-btn" class="btn-secondary">Download .txt</button>
+  </div>
+
+  <!-- Progress indicator -->
+  <div class="progress-area" id="progress-area">
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+    <div class="progress-label" id="progress-label">
+      Scraping <span id="state-name">—</span> &nbsp;(<span id="state-num">0</span> / <span id="state-total">51</span>)<span class="dot-loader"></span>
+    </div>
+  </div>
+
+  <!-- Scraper warnings (non-fatal, e.g. missing state table) -->
+  <div class="warnings" id="warnings-area"></div>
+
+  <!-- Fatal error message -->
+  <div class="error-msg" id="error-msg"></div>
+
+  <!-- Results output -->
+  <div class="output-area" id="output-area">
+    <div class="output-meta" id="output-meta"></div>
+    <textarea id="json-output" readonly spellcheck="false"></textarea>
+    <div class="instructions">
+      <strong>How to use this in MapChart:</strong><br>
+      1. Go to <a href="https://mapchart.net/usa-counties.html" target="_blank">mapchart.net/usa-counties.html</a><br>
+      2. Click <strong>SAVE/LOAD MAP CONFIGURATION → Choose file → Open</strong><br>
+      3. The map will color all counties automatically.
+    </div>
+  </div>
+
+  <!-- Shown before the first Generate click -->
+  <div class="status-idle" id="status-idle">
+    Enter a presidential election year and click Generate.
+  </div>
+
+</div><!-- /#main-screen -->
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     REASSIGN SCREEN (was incorrectly id="main-screen")
+     Shown when the user clicks "Reassign other votes" or the reassign badge.
+     Lets the user pick how non-Republican/Democrat votes are handled.
+
+     HOW TO ADD A NEW OPTION:
+       1. Copy one of the .option-card divs below and give it a new data-mode
+          value (e.g. data-mode="split").
+       2. Update the description and pill colour as needed.
+       3. In applyReassign() below, handle the new mode string.
+       4. In app.py's /api/stream route, map the new mode string to a boolean
+          flag and pass it to run_scraper().
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div id="reassign-screen">
+
+  <div class="reassign-topbar">
+    <!-- Back button: returns to the main screen without changing the setting -->
+    <button id="back-btn">← Back</button>
+    <h2>Reassign Other Votes</h2>
+  </div>
+
+  <div class="reassign-body">
+
+    <p class="reassign-description">
+      Some election years have significant third-party or independent candidates
+      (e.g. Perot 1992, Wallace 1968).  Choose how those votes are counted
+      when determining each county's winner.<br><br>
+      <strong>This only affects which party "wins" a county — it does not alter
+      the underlying vote totals.</strong>
+    </p>
+
+    <!-- Option: no reassignment (default) -->
+    <div class="option-card selected" data-mode="none">
+      <div class="option-dot"></div>
+      <div class="option-text">
+        <span class="option-title">Show third parties separately</span>
+        <span class="option-desc">
+          Counties won by a third party are coloured in their own colour
+          (orange for Other, green for Perot, purple for Wallace, etc.).
+          This is the default behaviour.
+        </span>
+      </div>
+    </div>
+
+    <!-- Option: fold all non-R/D votes into Democrat -->
+    <div class="option-card" data-mode="dem">
+      <div class="option-dot"></div>
+      <div class="option-text">
+        <span class="option-title">
+          All other votes → <span class="party-pill dem">Democrat</span>
+        </span>
+        <span class="option-desc">
+          Every non-Republican vote is added to the Democratic total.
+          Useful for "what if Perot hadn't run" counterfactuals where
+          third-party voters are assumed to have preferred the Democrat.
+        </span>
+      </div>
+    </div>
+
+    <!-- Option: fold all non-R/D votes into Republican -->
+    <div class="option-card" data-mode="rep">
+      <div class="option-dot"></div>
+      <div class="option-text">
+        <span class="option-title">
+          All other votes → <span class="party-pill rep">Republican</span>
+        </span>
+        <span class="option-desc">
+          Every non-Democrat vote is added to the Republican total.
+          Useful for counterfactuals where third-party voters are assumed
+          to have preferred the Republican.
+        </span>
+      </div>
+    </div>
+
+    <!--
+      ADD MORE OPTIONS HERE following the pattern above.
+      Set data-mode to a unique string, then handle it in applyReassign() and
+      in app.py's /api/stream route.
+    -->
+
+    <button id="apply-btn">Apply &amp; Go Back</button>
+
+  </div>
+</div><!-- /#reassign-screen -->
+
+<!--Shift states screen-->
+<div id="shift-screen" class="screen" style="display: none;">
+  <div class="shift-topbar">
+    <!-- Back button: returns to the main screen without changing the setting -->
+    <button id="shift-back-btn">← Back</button>
+    <h2>Shift States</h2>
+  </div>
+  <p class="shift-description">
+    If you want to manually reassign specific states to a different winner, you can do so by editing the JSON output after generating the initial results. But nobody wants
+    to do that by hand, so use this screen to specify any state-level reassignments you want to make.
+  </p>
+
+  <!-- State shift sliders -->
+  <div class="shift-sliders">
+
+    <div class="shift-row">
+      <span class="shift-state-label">Alabama</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Alabama">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Alabama-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Alaska</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Alaska">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Alaska-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Arizona</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Arizona">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Arizona-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Arkansas</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Arkansas">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Arkansas-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">California</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-California">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-California-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Colorado</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Colorado">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Colorado-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Connecticut</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Connecticut">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Connecticut-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Delaware</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Delaware">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Delaware-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">DC</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-District_of_Columbia">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-District_of_Columbia-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Florida</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Florida">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Florida-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Georgia</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Georgia">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Georgia-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Hawaii</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Hawaii">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Hawaii-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Idaho</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Idaho">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Idaho-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Illinois</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Illinois">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Illinois-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Indiana</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Indiana">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Indiana-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Iowa</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0"  class="slider" id="shift-Iowa">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Iowa-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Kansas</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Kansas">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Kansas-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Kentucky</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Kentucky">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Kentucky-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Louisiana</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Louisiana">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Louisiana-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Maine</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Maine">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Maine-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Maryland</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Maryland">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Maryland-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Massachusetts</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Massachusetts">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Massachusetts-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Michigan</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Michigan">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Michigan-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Minnesota</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Minnesota">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Minnesota-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Mississippi</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Mississippi">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Mississippi-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Missouri</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Missouri">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Missouri-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Montana</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Montana">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Montana-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Nebraska</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Nebraska">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Nebraska-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Nevada</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Nevada">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Nevada-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">New Hampshire</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-New-Hampshire">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-New-Hampshire-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">New Jersey</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-New-Jersey">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-New-Jersey-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">New Mexico</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-New-Mexico">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-New-Mexico-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">New York</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-New-York">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-New-York-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">North Carolina</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-North-Carolina">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-North-Carolina-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">North Dakota</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-North-Dakota">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-North-Dakota-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Ohio</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Ohio">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Ohio-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Oklahoma</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Oklahoma">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Oklahoma-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Oregon</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Oregon">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Oregon-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Pennsylvania</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Pennsylvania">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Pennsylvania-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Rhode Island</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Rhode-Island">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Rhode-Island-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">South Carolina</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-South-Carolina">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-South-Carolina-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">South Dakota</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-South-Dakota">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-South-Dakota-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Tennessee</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Tennessee">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Tennessee-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Texas</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Texas">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Texas-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Utah</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Utah">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Utah-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Vermont</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Vermont">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Vermont-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Virginia</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Virginia">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Virginia-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Washington</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Washington-state">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Washington-state-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">West Virginia</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-West-Virginia">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-West-Virginia-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Wisconsin</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Wisconsin">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Wisconsin-val">0</span>
+    </div>
+    <div class="shift-row">
+      <span class="shift-state-label">Wyoming</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-Wyoming">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-Wyoming-val">0</span>
+    </div>  
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ════════════════════════════════════════════════════════════════════════════ -->
+<script>
+  // ── Element references ────────────────────────────────────────────────────
+  const goBtn         = document.getElementById('go-btn');
+  const downloadBtn   = document.getElementById('download-btn');
+  const shiftBtn      = document.getElementById('shift-btn');
+  const customizeBtn  = document.getElementById('customize-btn');
+  const yearInput     = document.getElementById('year-input');
+  const progressArea  = document.getElementById('progress-area');
+  const progressFill  = document.getElementById('progress-fill');
+  const stateNameEl   = document.getElementById('state-name');
+  const stateNumEl    = document.getElementById('state-num');
+  const stateTotalEl  = document.getElementById('state-total');
+  const warningsArea  = document.getElementById('warnings-area');
+  const outputArea    = document.getElementById('output-area');
+  const jsonOutput    = document.getElementById('json-output');
+  const outputMeta    = document.getElementById('output-meta');
+  const statusIdle    = document.getElementById('status-idle');
+  const errorMsg      = document.getElementById('error-msg');
+  const mainScreen    = document.getElementById('main-screen');
+  const reassignScreen = document.getElementById('reassign-screen');
+  const backBtn       = document.getElementById('back-btn');
+  const applyBtn      = document.getElementById('apply-btn');
+  const reassignBadge = document.getElementById('reassign-badge');
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  // otherMode: "none" | "dem" | "rep"
+  // To add a new mode, add its string here and handle it in applyReassign()
+  // and in app.py's /api/stream.
+  let otherMode      = 'none';   // currently applied mode
+  let pendingMode    = 'none';   // mode selected on the reassign screen (not yet applied)
+  let currentSource  = null;     // active EventSource, if any
+  let originalData   = null;     // deep-clone of last rendered data, used by shift logic
+
+  // ── Screen switching ──────────────────────────────────────────────────────
+
+  function showReassignScreen() {
+    mainScreen.style.display    = 'none';
+    reassignScreen.style.display = 'flex';
+    // Sync card selection to whatever is currently applied
+    pendingMode = otherMode;
+    updateCardSelection(pendingMode);
+  }
+
+  function showMainScreen() {
+    reassignScreen.style.display = 'none';
+    shiftScreen.style.display    = 'none';
+    mainScreen.style.display     = 'block';
+  }
+
+  // ── Reassign card interaction ─────────────────────────────────────────────
+
+  // Highlight the card matching `mode` and deselect all others
+  function updateCardSelection(mode) {
+    document.querySelectorAll('.option-card').forEach(card => {
+      const isSelected = card.dataset.mode === mode;
+      card.classList.toggle('selected', isSelected);
+    });
+  }
+  // Shift screen wiring
+  const shiftScreen   = document.getElementById('shift-screen');
+  const shiftBackBtn  = document.getElementById('shift-back-btn');
+
+  function showShiftScreen() {
+    mainScreen.style.display  = 'none';
+    shiftScreen.style.display = 'flex';
+  }
+
+  function showMainScreenFromShift() {
+    shiftScreen.style.display = 'none';
+    mainScreen.style.display  = 'block';
+  }
+
+  shiftBtn.addEventListener('click', showShiftScreen);
+  shiftBackBtn.addEventListener('click', showMainScreenFromShift);
+  // Clicking any option card selects it (but doesn't apply yet)
+  document.querySelectorAll('.option-card').forEach(card => {
+    card.addEventListener('click', () => {
+      pendingMode = card.dataset.mode;
+      updateCardSelection(pendingMode);
+    });
+  });
+
+  // ── Apply button ──────────────────────────────────────────────────────────
+  // Saves the pending choice, updates the badge, and returns to the main screen.
+  // Does NOT trigger a new scrape — the user must click Generate for that.
+  applyBtn.addEventListener('click', () => {
+    otherMode = pendingMode;
+    updateReassignBadge();
+    showMainScreen();
+  });
+
+  // Back button: discard pending choice and return without changing anything
+  backBtn.addEventListener('click', () => {
+    showMainScreen();
+  });
+
+  // Clicking the badge reopens the reassign screen
+  reassignBadge.addEventListener('click', showReassignScreen);
+
+  // Opens the reassign screen from the main controls button
+  customizeBtn.addEventListener('click', showReassignScreen);
+
+  // ── Reassign badge ────────────────────────────────────────────────────────
+  // Shows a small coloured label when a non-default mode is active.
+  // To add a new mode badge, add an else-if branch here.
+  function updateReassignBadge() {
+    if (otherMode === 'dem') {
+      reassignBadge.textContent = 'OTHER → DEM';
+      reassignBadge.className = 'dem';
+      reassignBadge.style.display = 'inline-block';
+    } else if (otherMode === 'rep') {
+      reassignBadge.textContent = 'OTHER → REP';
+      reassignBadge.className = 'rep';
+      reassignBadge.style.display = 'inline-block';
+    } else {
+      reassignBadge.style.display = 'none';
+    }
+  }
+
+  // ── Main screen helpers ───────────────────────────────────────────────────
+
+  function reset() {
+    progressArea.style.display = 'none';
+    outputArea.style.display   = 'none';
+    warningsArea.style.display = 'none';
+    warningsArea.innerHTML     = '';
+    errorMsg.style.display     = 'none';
+    downloadBtn.style.display  = 'none';
+    statusIdle.style.display   = 'block';
+    progressFill.style.width   = '0%';
+  }
+
+  function showError(msg) {
+    errorMsg.textContent     = msg;
+    errorMsg.style.display   = 'block';
+    statusIdle.style.display = 'none';
+  }
+
+  // ── Generate button ───────────────────────────────────────────────────────
+  goBtn.addEventListener('click', () => {
+    const year = yearInput.value.trim();
+    if (!year || isNaN(year) || +year < 1788 || +year > 2100) {
+      showError('Please enter a valid election year (e.g. 1988).');
+      return;
+    }
+
+    if (currentSource) { currentSource.close(); currentSource = null; }
+    reset();
+    goBtn.disabled = true;
+    statusIdle.style.display = 'none';
+
+    // Check whether a cached result is available for this year + mode combo.
+    // The server caches by (year, otherMode) so changing the mode forces a
+    // fresh scrape even if the plain year was cached previously.
+    fetch(`/api/results?year=${year}&otherMode=${otherMode}&stateShifts=${encodeURIComponent(JSON.stringify(stateShifts))}&switchColors=${switchColors}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'cached') {
+          renderResult(data.data, year, true);
+          goBtn.disabled = false;
+        } else {
+          startStream(year);
+        }
+      })
+      .catch(() => startStream(year));
+  });
+
+  // ── Switch colors toggle ──────────────────────────────────────────────────
+  let switchColors = false;
+  const switchColorsToggle = document.getElementById('switch-colors-toggle');
+  switchColorsToggle.addEventListener('change', () => {
+    switchColors = switchColorsToggle.checked;
+  });
+
+  // ── Streaming scrape ──────────────────────────────────────────────────────
+  // Passes otherMode to the server as a query param.
+  // To add a new option, it just flows through here automatically as long as
+  // app.py's /api/stream handles the new otherMode value.
+  function startStream(year) {
+    progressArea.style.display = 'flex';
+
+    const source = new EventSource(`/api/stream?year=${year}&otherMode=${otherMode}&stateShifts=${encodeURIComponent(JSON.stringify(stateShifts))}&switchColors=${switchColors}`);
+    currentSource = source;
+
+    source.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+
+      if (msg.type === 'progress') {
+        const pct = Math.round((msg.index / msg.total) * 100);
+        progressFill.style.width  = pct + '%';
+        stateNameEl.textContent   = msg.state;
+        stateNumEl.textContent    = msg.index;
+        stateTotalEl.textContent  = msg.total;
+      }
+
+      if (msg.type === 'warning') {
+        warningsArea.style.display = 'flex';
+        const p = document.createElement('p');
+        p.textContent = msg.message;
+        warningsArea.appendChild(p);
+      }
+
+      if (msg.type === 'done') {
+        source.close();
+        currentSource = null;
+        progressArea.style.display = 'none';
+        renderResult(msg.data, year, false);
+        goBtn.disabled = false;
+      }
+
+      if (msg.type === 'error') {
+        source.close();
+        currentSource = null;
+        progressArea.style.display = 'none';
+        showError(msg.message || 'An error occurred.');
+        goBtn.disabled = false;
+      }
+    };
+
+    source.onerror = () => {
+      source.close();
+      currentSource = null;
+      progressArea.style.display = 'none';
+      showError('Connection lost. Make sure the Flask server is running.');
+      goBtn.disabled = false;
+    };
+  }
+
+  // ── Render results ────────────────────────────────────────────────────────
+  // To add extra metadata lines (e.g. showing which mode was used), edit the
+  // outputMeta.innerHTML assignment below.
+  function renderResult(data, year, fromCache) {
+    originalData = JSON.parse(JSON.stringify(data)); // deep clone baseline for shift logic
+    const json = JSON.stringify(data, null, 2);
+    jsonOutput.value = json;
+
+    // Count filled counties across all groups
+    let total = 0;
+    for (const g of Object.values(data.groups)) total += g.paths.length;
+
+    // Build a human-readable label for the active reassignment mode
+    const modeLabel = otherMode === 'dem' ? ' &nbsp;·&nbsp; other → Dem'
+                    : otherMode === 'rep' ? ' &nbsp;·&nbsp; other → Rep'
+                    : '';
+
+    outputMeta.innerHTML =
+      `<strong>${year} election</strong> &nbsp;·&nbsp; ${total} counties/areas mapped` +
+      modeLabel +
+      (fromCache ? ' &nbsp;·&nbsp; loaded from cache' : '');
+
+    outputArea.style.display   = 'flex';
+    downloadBtn.style.display  = 'inline-block';
+    statusIdle.style.display   = 'none';
+  }
+
+  // ── Download button ───────────────────────────────────────────────────────
+  downloadBtn.addEventListener('click', () => {
+    const blob = new Blob([jsonOutput.value], { type: 'text/plain' });
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    // Include the mode in the filename so files don't overwrite each other
+    const suffix = otherMode !== 'none' ? `_${otherMode}` : '';
+    const shiftSuffix = Object.entries(stateShifts).filter(([,v]) => v !== 0)
+      .map(([k,v]) => `_${k}${v > 0 ? '+' : ''}${v}`).join('');
+    a.download = `election_${yearInput.value}${suffix}${shiftSuffix}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // Allow Enter key in year input
+  yearInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') goBtn.click();
+  });
+
+  // ── Shift states ──────────────────────────────────────────────────────────
+  // stateShifts maps state name → shift amount (-100 … +100).
+  // Positive = toward Republican, negative = toward Democrat.
+  // Values are sent to the server as a JSON query param; the server applies
+  // the shift to the raw vote percentages from the CSV and re-buckets counties.
+  const stateShifts = { Alabama: 0, Alaska: 0, Arizona: 0, Arkansas: 0, California: 0, Colorado: 0, Connecticut: 0, Delaware: 0, Florida: 0, Georgia: 0, Hawaii: 0, Idaho: 0, Illinois: 0, Indiana: 0, Iowa: 0, Kansas: 0, Kentucky: 0, Louisiana: 0, Maine: 0, 
+    Maryland: 0, Massachusetts: 0, Michigan: 0, Minnesota: 0, Mississippi: 0, Missouri: 0, Montana: 0, Nebraska: 0, Nevada: 0, New_Hampshire: 0, New_Jersey: 0, New_Mexico: 0, New_York: 0, North_Carolina: 0, North_Dakota: 0, Ohio: 0, Oklahoma: 0, Oregon: 0,
+    Pennsylvania: 0, Rhode_Island: 0, South_Carolina: 0, South_Dakota: 0, Tennessee: 0, Texas: 0, Utah: 0, Vermont: 0, Virginia: 0, Washington_state: 0, West_Virginia: 0, Wisconsin: 0, Wyoming: 0 };
+
+  // Wire the Alabama slider — update the displayed value only.
+  // The shift is applied server-side when the user clicks Generate.
+  const AlabamaSlider = document.getElementById('shift-Alabama');
+  const AlabamaVal    = document.getElementById('shift-Alabama-val');
+  AlabamaSlider.addEventListener('input', () => {
+    const val = parseInt(AlabamaSlider.value, 10);
+    stateShifts.Alabama = val;
+    AlabamaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const AlaskaSlider = document.getElementById('shift-Alaska');
+  const AlaskaVal    = document.getElementById('shift-Alaska-val');
+  AlaskaSlider.addEventListener('input', () => {
+    const val = parseInt(AlaskaSlider.value, 10);
+    stateShifts.Alaska = val;
+    AlaskaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const ArizonaSlider = document.getElementById('shift-Arizona');
+  const ArizonaVal    = document.getElementById('shift-Arizona-val');
+  ArizonaSlider.addEventListener('input', () => {
+    const val = parseInt(ArizonaSlider.value, 10);
+    stateShifts.Arizona = val;
+    ArizonaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const ArkansasSlider = document.getElementById('shift-Arkansas');
+  const ArkansasVal    = document.getElementById('shift-Arkansas-val');
+  ArkansasSlider.addEventListener('input', () => {
+    const val = parseInt(ArkansasSlider.value, 10);
+    stateShifts.Arkansas = val;
+    ArkansasVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const CaliforniaSlider = document.getElementById('shift-California');
+  const CaliforniaVal    = document.getElementById('shift-California-val');
+  CaliforniaSlider.addEventListener('input', () => {
+    const val = parseInt(CaliforniaSlider.value, 10);
+    stateShifts.California = val;
+    CaliforniaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const ColoradoSlider = document.getElementById('shift-Colorado');
+  const ColoradoVal    = document.getElementById('shift-Colorado-val');
+  ColoradoSlider.addEventListener('input', () => {
+    const val = parseInt(ColoradoSlider.value, 10);
+    stateShifts.Colorado = val;
+    ColoradoVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const ConnecticutSlider = document.getElementById('shift-Connecticut');
+  const ConnecticutVal    = document.getElementById('shift-Connecticut-val');
+  ConnecticutSlider.addEventListener('input', () => {
+    const val = parseInt(ConnecticutSlider.value, 10);
+    stateShifts.Connecticut = val;
+    ConnecticutVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const DelawareSlider = document.getElementById('shift-Delaware');
+  const DelawareVal    = document.getElementById('shift-Delaware-val');
+  DelawareSlider.addEventListener('input', () => {
+    const val = parseInt(DelawareSlider.value, 10);
+    stateShifts.Delaware = val;
+    DelawareVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const DCSlider = document.getElementById('shift-District_of_Columbia');
+  const DCVal    = document.getElementById('shift-District_of_Columbia-val');
+  DCSlider.addEventListener('input', () => {
+    const val = parseInt(DCSlider.value, 10);
+    stateShifts.District_of_Columbia = val;
+    DCVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const FloridaSlider = document.getElementById('shift-Florida');
+  const FloridaVal    = document.getElementById('shift-Florida-val');
+  FloridaSlider.addEventListener('input', () => {
+    const val = parseInt(FloridaSlider.value, 10);
+    stateShifts.Florida = val;
+    FloridaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const GeorgiaSlider = document.getElementById('shift-Georgia');
+  const GeorgiaVal    = document.getElementById('shift-Georgia-val');
+  GeorgiaSlider.addEventListener('input', () => {
+    const val = parseInt(GeorgiaSlider.value, 10);
+    stateShifts.Georgia = val;
+    GeorgiaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const HawaiiSlider = document.getElementById('shift-Hawaii');
+  const HawaiiVal    = document.getElementById('shift-Hawaii-val');
+  HawaiiSlider.addEventListener('input', () => {
+    const val = parseInt(HawaiiSlider.value, 10);
+    stateShifts.Hawaii = val;
+    HawaiiVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const IdahoSlider = document.getElementById('shift-Idaho');
+  const IdahoVal    = document.getElementById('shift-Idaho-val');
+  IdahoSlider.addEventListener('input', () => {
+    const val = parseInt(IdahoSlider.value, 10);
+    stateShifts.Idaho = val;
+    IdahoVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const IllinoisSlider = document.getElementById('shift-Illinois');
+  const IllinoisVal    = document.getElementById('shift-Illinois-val');
+  IllinoisSlider.addEventListener('input', () => {
+    const val = parseInt(IllinoisSlider.value, 10);
+    stateShifts.Illinois = val;
+    IllinoisVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const IndianaSlider = document.getElementById('shift-Indiana');
+  const IndianaVal    = document.getElementById('shift-Indiana-val');
+  IndianaSlider.addEventListener('input', () => {
+    const val = parseInt(IndianaSlider.value, 10);
+    stateShifts.Indiana = val;
+    IndianaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const IowaSlider = document.getElementById('shift-Iowa');
+  const IowaVal    = document.getElementById('shift-Iowa-val');
+  IowaSlider.addEventListener('input', () => {
+    const val = parseInt(IowaSlider.value, 10);
+    stateShifts.Iowa = val;
+    IowaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const KansasSlider = document.getElementById('shift-Kansas');
+  const KansasVal    = document.getElementById('shift-Kansas-val');
+  KansasSlider.addEventListener('input', () => {
+    const val = parseInt(KansasSlider.value, 10);
+    stateShifts.Kansas = val;
+    KansasVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const KentuckySlider = document.getElementById('shift-Kentucky');
+  const KentuckyVal    = document.getElementById('shift-Kentucky-val');
+  KentuckySlider.addEventListener('input', () => {
+    const val = parseInt(KentuckySlider.value, 10);
+    stateShifts.Kentucky = val;
+    KentuckyVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const LouisianaSlider = document.getElementById('shift-Louisiana');
+  const LouisianaVal    = document.getElementById('shift-Louisiana-val');
+  LouisianaSlider.addEventListener('input', () => {
+    const val = parseInt(LouisianaSlider.value, 10);
+    stateShifts.Louisiana = val;
+    LouisianaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const MaineSlider = document.getElementById('shift-Maine');
+  const MaineVal    = document.getElementById('shift-Maine-val');
+  MaineSlider.addEventListener('input', () => {
+    const val = parseInt(MaineSlider.value, 10);
+    stateShifts.Maine = val;
+    MaineVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const MarylandSlider = document.getElementById('shift-Maryland');
+  const MarylandVal    = document.getElementById('shift-Maryland-val');
+  MarylandSlider.addEventListener('input', () => {
+    const val = parseInt(MarylandSlider.value, 10);
+    stateShifts.Maryland = val;
+    MarylandVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const MassachusettsSlider = document.getElementById('shift-Massachusetts');
+  const MassachusettsVal    = document.getElementById('shift-Massachusetts-val');
+  MassachusettsSlider.addEventListener('input', () => {
+    const val = parseInt(MassachusettsSlider.value, 10);
+    stateShifts.Massachusetts = val;
+    MassachusettsVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const MichiganSlider = document.getElementById('shift-Michigan');
+  const MichiganVal    = document.getElementById('shift-Michigan-val');
+  MichiganSlider.addEventListener('input', () => {
+    const val = parseInt(MichiganSlider.value, 10);
+    stateShifts.Michigan = val;
+    MichiganVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const MinnesotaSlider = document.getElementById('shift-Minnesota');
+  const MinnesotaVal    = document.getElementById('shift-Minnesota-val');
+  MinnesotaSlider.addEventListener('input', () => {
+    const val = parseInt(MinnesotaSlider.value, 10);
+    stateShifts.Minnesota = val;
+    MinnesotaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  
+
+  const MississippiSlider = document.getElementById('shift-Mississippi');
+  const MississippiVal    = document.getElementById('shift-Mississippi-val');
+  MississippiSlider.addEventListener('input', () => {
+    const val = parseInt(MississippiSlider.value, 10);
+    stateShifts.Mississippi = val;
+    MississippiVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+  
+  const MissouriSlider = document.getElementById('shift-Missouri');
+  const MissouriVal    = document.getElementById('shift-Missouri-val');
+  MissouriSlider.addEventListener('input', () => {
+    const val = parseInt(MissouriSlider.value, 10);
+    stateShifts.Missouri = val;
+    MissouriVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const MontanaSlider = document.getElementById('shift-Montana');
+  const MontanaVal    = document.getElementById('shift-Montana-val');
+  MontanaSlider.addEventListener('input', () => {
+    const val = parseInt(MontanaSlider.value, 10);
+    stateShifts.Montana = val;
+    MontanaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const NebraskaSlider = document.getElementById('shift-Nebraska');
+  const NebraskaVal    = document.getElementById('shift-Nebraska-val');
+  NebraskaSlider.addEventListener('input', () => {
+    const val = parseInt(NebraskaSlider.value, 10);
+    stateShifts.Nebraska = val;
+    NebraskaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const NevadaSlider = document.getElementById('shift-Nevada');
+  const NevadaVal    = document.getElementById('shift-Nevada-val');
+  NevadaSlider.addEventListener('input', () => {
+    const val = parseInt(NevadaSlider.value, 10);
+    stateShifts.Nevada = val;
+    NevadaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const New_HampshireSlider = document.getElementById('shift-New-Hampshire');
+  const New_HampshireVal    = document.getElementById('shift-New-Hampshire-val');
+  New_HampshireSlider.addEventListener('input', () => {
+    const val = parseInt(New_HampshireSlider.value, 10);
+    stateShifts.New_Hampshire = val;
+    New_HampshireVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const New_JerseySlider = document.getElementById('shift-New-Jersey');
+  const New_JerseyVal    = document.getElementById('shift-New-Jersey-val');
+  New_JerseySlider.addEventListener('input', () => {
+    const val = parseInt(New_JerseySlider.value, 10);
+    stateShifts.New_Jersey = val;
+    New_JerseyVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const New_MexicoSlider = document.getElementById('shift-New-Mexico');
+  const New_MexicoVal    = document.getElementById('shift-New-Mexico-val');
+  New_MexicoSlider.addEventListener('input', () => {
+    const val = parseInt(New_MexicoSlider.value, 10);
+    stateShifts.New_Mexico = val;
+    New_MexicoVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const New_YorkSlider = document.getElementById('shift-New-York');
+  const New_YorkVal    = document.getElementById('shift-New-York-val');
+  New_YorkSlider.addEventListener('input', () => {
+    const val = parseInt(New_YorkSlider.value, 10);
+    stateShifts.New_York = val;
+    New_YorkVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const North_CarolinaSlider = document.getElementById('shift-North-Carolina');
+  const North_CarolinaVal    = document.getElementById('shift-North-Carolina-val');
+  North_CarolinaSlider.addEventListener('input', () => {
+    const val = parseInt(North_CarolinaSlider.value, 10);
+    stateShifts.North_Carolina = val;
+    North_CarolinaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const North_DakotaSlider = document.getElementById('shift-North-Dakota');
+  const North_DakotaVal    = document.getElementById('shift-North-Dakota-val');
+  North_DakotaSlider.addEventListener('input', () => {
+    const val = parseInt(North_DakotaSlider.value, 10);
+    stateShifts.North_Dakota = val;
+    North_DakotaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const OhioSlider = document.getElementById('shift-Ohio');
+  const OhioVal    = document.getElementById('shift-Ohio-val');
+  OhioSlider.addEventListener('input', () => {
+    const val = parseInt(OhioSlider.value, 10);
+    stateShifts.Ohio = val;
+    OhioVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const OklahomaSlider = document.getElementById('shift-Oklahoma');
+  const OklahomaVal    = document.getElementById('shift-Oklahoma-val');
+  OklahomaSlider.addEventListener('input', () => {
+    const val = parseInt(OklahomaSlider.value, 10);
+    stateShifts.Oklahoma = val;
+    OklahomaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const OregonSlider = document.getElementById('shift-Oregon');
+  const OregonVal    = document.getElementById('shift-Oregon-val');
+  OregonSlider.addEventListener('input', () => {
+    const val = parseInt(OregonSlider.value, 10);
+    stateShifts.Oregon = val;
+    OregonVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const PennsylvaniaSlider = document.getElementById('shift-Pennsylvania');
+  const PennsylvaniaVal    = document.getElementById('shift-Pennsylvania-val');
+  PennsylvaniaSlider.addEventListener('input', () => {
+    const val = parseInt(PennsylvaniaSlider.value, 10);
+    stateShifts.Pennsylvania = val;
+    PennsylvaniaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const Rhode_IslandSlider = document.getElementById('shift-Rhode-Island');
+  const Rhode_IslandVal    = document.getElementById('shift-Rhode-Island-val');
+  Rhode_IslandSlider.addEventListener('input', () => {
+    const val = parseInt(Rhode_IslandSlider.value, 10);
+    stateShifts.Rhode_Island = val;
+    Rhode_IslandVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const South_CarolinaSlider = document.getElementById('shift-South-Carolina');
+  const South_CarolinaVal    = document.getElementById('shift-South-Carolina-val');
+  South_CarolinaSlider.addEventListener('input', () => {
+    const val = parseInt(South_CarolinaSlider.value, 10);
+    stateShifts.South_Carolina = val;
+    South_CarolinaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const South_DakotaSlider = document.getElementById('shift-South-Dakota');
+  const South_DakotaVal    = document.getElementById('shift-South-Dakota-val');
+  South_DakotaSlider.addEventListener('input', () => {
+    const val = parseInt(South_DakotaSlider.value, 10);
+    stateShifts.South_Dakota = val;
+    South_DakotaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const TennesseeSlider = document.getElementById('shift-Tennessee');
+  const TennesseeVal    = document.getElementById('shift-Tennessee-val');
+  TennesseeSlider.addEventListener('input', () => {
+    const val = parseInt(TennesseeSlider.value, 10);
+    stateShifts.Tennessee = val;
+    TennesseeVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const TexasSlider = document.getElementById('shift-Texas');
+  const TexasVal    = document.getElementById('shift-Texas-val');
+  TexasSlider.addEventListener('input', () => {
+    const val = parseInt(TexasSlider.value, 10);
+    stateShifts.Texas = val;
+    TexasVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const UtahSlider = document.getElementById('shift-Utah');
+  const UtahVal    = document.getElementById('shift-Utah-val');
+  UtahSlider.addEventListener('input', () => {
+    const val = parseInt(UtahSlider.value, 10);
+    stateShifts.Utah = val;
+    UtahVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const VermontSlider = document.getElementById('shift-Vermont');
+  const VermontVal    = document.getElementById('shift-Vermont-val');
+  VermontSlider.addEventListener('input', () => {
+    const val = parseInt(VermontSlider.value, 10);
+    stateShifts.Vermont = val;
+    VermontVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const VirginiaSlider = document.getElementById('shift-Virginia');
+  const VirginiaVal    = document.getElementById('shift-Virginia-val');
+  VirginiaSlider.addEventListener('input', () => {
+    const val = parseInt(VirginiaSlider.value, 10);
+    stateShifts.Virginia = val;
+    VirginiaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const Washington_stateSlider = document.getElementById('shift-Washington-state');
+  const Washington_stateVal    = document.getElementById('shift-Washington-state-val');
+  Washington_stateSlider.addEventListener('input', () => {
+    const val = parseInt(Washington_stateSlider.value, 10);
+    stateShifts.Washington_state = val;
+    Washington_stateVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const West_VirginiaSlider = document.getElementById('shift-West-Virginia');
+  const West_VirginiaVal    = document.getElementById('shift-West-Virginia-val');
+  West_VirginiaSlider.addEventListener('input', () => {
+    const val = parseInt(West_VirginiaSlider.value, 10);
+    stateShifts.West_Virginia = val;
+    West_VirginiaVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const WisconsinSlider = document.getElementById('shift-Wisconsin');
+  const WisconsinVal    = document.getElementById('shift-Wisconsin-val');
+  WisconsinSlider.addEventListener('input', () => {
+    const val = parseInt(WisconsinSlider.value, 10);
+    stateShifts.Wisconsin = val;
+    WisconsinVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+  const WyomingSlider = document.getElementById('shift-Wyoming');
+  const WyomingVal    = document.getElementById('shift-Wyoming-val');
+  WyomingSlider.addEventListener('input', () => {
+    const val = parseInt(WyomingSlider.value, 10);
+    stateShifts.Wyoming = val;
+    WyomingVal.textContent = (val > 0 ? '+' : '') + val;
+  });
+
+</script>
+</body>
+</html>
