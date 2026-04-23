@@ -22,7 +22,6 @@ results_cache = {}
 #
 # otherAsDem / otherAsRep: when True, all non-D/R votes are folded into that
 # party's total before deciding a county winner.
-CSV_PATH = "2024results.csv"
 
 def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_shifts=None, switchColors=False):
     """Load 2024 county results from the local CSV and bucket them for MapChart.
@@ -88,6 +87,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 return
 
     # ── Load CSV ───────────────────────────────────────────────────────────────
+    CSV_PATH=str(year) + 'results.csv'
     try:
         df = pd.read_csv(CSV_PATH)
     except FileNotFoundError:
