@@ -8,7 +8,7 @@ import math
 app = Flask(__name__)
 
 # ─── Cache ────────────────────────────────────────────────────────────────────
-# Keyed by (year, otherAsDem, otherAsRep) so different reassignment modes are
+# Keyed by (year, otherAsDem, otherAsRep) so different other reassignment modes are
 # cached separately.  To add a new per-run option, add it to the cache key here
 # and pass it through the stream endpoint below.
 results_cache = {}
@@ -40,6 +40,8 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     # (controlled by the switchColors parameter passed in from the request)
 
     """Special Regions: For well known regions that aren't states"""
+    Southern_California = ["Los_Angeles__CA","Orange__CA","San_Diego__CA","Riverside__CA","San_Bernardino__CA"]
+
     NYC_Metro = ["Bergen__NJ","Essex__NJ","Hudson__NJ","Hunterdon__NJ","Middlesex__NJ","Monmouth__NJ","Morris__NJ","Passaic__NJ","Union__NJ","Somerset__NJ",
                  "Bronx__NY","Kings__NY","Nassau__NY","New_York__NY","Putnam__NY","Queens__NY","Richmond__NY","Rockland__NY","Suffolk__NY","Westchester__NY",
                  "Western_Connecticut__CT"]
@@ -64,27 +66,53 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
 
     tie = []
 
-    def bucket_county(path_id, pct, party):
+    def bucket_county(path_id, pct, party, dem_pct=None, rep_pct=None):
         ranges = [(30,40,0),(40,50,1),(50,60,2),(60,70,3),(70,80,4),(80,90,5),(90,101,6)]
         buckets = {
             'Republican': [Republican_30_40,Republican_40_50,Republican_50_60,Republican_60_70,
-                           Republican_70_80,Republican_80_90,Republican_90_100],
+                        Republican_70_80,Republican_80_90,Republican_90_100],
             'Democrat':   [Democrat_30_40,Democrat_40_50,Democrat_50_60,Democrat_60_70,
-                           Democrat_70_80,Democrat_80_90,Democrat_90_100],
+                        Democrat_70_80,Democrat_80_90,Democrat_90_100],
             'Other':      [Other_30_40,Other_40_50,Other_50_60,Other_60_70,
-                           Other_70_80,Other_80_90,Other_90_100],
+                        Other_70_80,Other_80_90,Other_90_100],
             'Wallace':    [Wallace_30_40,Wallace_40_50,Wallace_50_60,Wallace_60_70,
-                           Wallace_70_80,Wallace_80_90,Wallace_90_100],
+                        Wallace_70_80,Wallace_80_90,Wallace_90_100],
             'Unpledged':  [Unpledged_30_40,Unpledged_40_50,Unpledged_50_60,Unpledged_60_70,
-                           Unpledged_70_80,Unpledged_80_90,Unpledged_90_100],
+                        Unpledged_70_80,Unpledged_80_90,Unpledged_90_100],
             'Perot':      [Perot_30_40,Perot_40_50,Perot_50_60,Perot_60_70,
-                           Perot_70_80,Perot_80_90,Perot_90_100],
+                        Perot_70_80,Perot_80_90,Perot_90_100],
             'Tie':        [tie,tie,tie,tie,tie,tie,tie],
         }
-        for lo, hi, idx in ranges:
-            if int(lo) <= int(float(pct)) < int(hi):
-                buckets[party][idx].append(path_id)
+
+        if otherAsRep or otherAsDem:
+            # Recalculate winner using redistributed votes
+            r = float(rep_pct) if rep_pct is not None else 0.0
+            d = float(dem_pct) if dem_pct is not None else 0.0
+
+            if otherAsRep:
+                # All non-Dem votes go to Republican
+                new_rep = 100.0 - d
+                new_dem = d
+            else:  # otherAsDem
+                # All non-Rep votes go to Democrat
+                new_dem = 100.0 - r
+                new_rep = r
+
+            if new_rep > new_dem:
+                eff_party, eff_pct = 'Republican', new_rep
+            elif new_dem > new_rep:
+                eff_party, eff_pct = 'Democrat', new_dem
+            else:
+                tie.append(path_id)
                 return
+        else:
+            eff_party, eff_pct = party, float(pct)
+
+        for lo, hi, idx in ranges:
+            if lo <= int(eff_pct) < hi:
+                buckets[eff_party][idx].append(path_id)
+                return
+                    
 
     # ── Load CSV ───────────────────────────────────────────────────────────────
     CSV_PATH=str(year) + 'results.csv'
@@ -131,16 +159,24 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     so column order doesn't matter and the header row is skipped automatically.
     '''
     for county in rows:
-        bucket_county(county['County__State_Code'], county['Winner_Pct'], county['Winner'])
+        bucket_county(
+            county['County__State_Code'],
+            county['Winner_Pct'],
+            county['Winner'],
+            dem_pct=county.get('Democrat_Pct'),
+            rep_pct=county.get('Republican_Pct'),
+        )
 
-        """If a county wasn't founded yet, put it in the bucket of its previous county.  This is very important to have; otherwise, there would be a lot of counties without data in
-        older maps.  Don't add Broomfield, Colorado because it was created from four different counties."""
+        "For counties that didn't exist yet, use the county it was part of."
         if county['County__State_Code']=="Yuma__AZ" and int(year)<1984:
-            bucket_county("La_Paz__AZ", county['Winner_Pct'], county['Winner'])
+            bucket_county("La_Paz__AZ", county['Winner_Pct'], county['Winner'],
+                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
         if county['County__State_Code']=="Valencia__NM" and int(year)<1984:
-            bucket_county("Cibola__NM", county['Winner_Pct'], county['Winner'])
+            bucket_county("Cibola__NM", county['Winner_Pct'], county['Winner'],
+                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
         if county['County__State_Code']=="York__VA" and int(year)<1976:
-            bucket_county("Poquoson__VA", county['Winner_Pct'], county['Winner'])
+            bucket_county("Poquoson__VA", county['Winner_Pct'], county['Winner'],
+                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
 
     # ── Apply state-level shifts ───────────────────────────────────────────────
     # For each shifted state, re-derive winner+pct for every county in that
@@ -332,7 +368,7 @@ def index():
 
 @app.route("/api/results")
 def results():
-    """Check whether a cached result exists for this year + reassignment mode + shifts."""
+    """Check whether a cached result exists for this year + reassign other mode + shifts."""
     year          = request.args.get("year", "").strip()
     other_mode    = request.args.get("otherMode", "none")  # "dem", "rep", or "none"
     shifts_raw    = request.args.get("stateShifts", "{}")  # JSON string, e.g. '{"Alabama":30}'
