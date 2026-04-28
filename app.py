@@ -220,7 +220,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 except (ValueError, TypeError):
                     continue
 
-                # Apply shift to the two-party split.
+                # Apply shift to the raw two-party split first.
                 # shift > 0 → more Republican; shift < 0 → more Democrat.
                 new_dem = max(0.0, dem_pct - shift)
                 new_rep = max(0.0, rep_pct + shift)
@@ -232,6 +232,16 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 if new_dem > 100:
                     new_dem = 100.0
                     new_rep = 0.0
+
+                # Now apply other-vote redistribution on top of the shifted values.
+                # new_dem + new_rep may not sum to 100 (other votes remain), so
+                # folding others in mirrors exactly what bucket_county does.
+                if otherAsRep:
+                    # All non-Dem votes go to Republican
+                    new_rep = 100.0 - new_dem
+                elif otherAsDem:
+                    # All non-Rep votes go to Democrat
+                    new_dem = 100.0 - new_rep
 
                 # Determine new winner and winning pct
                 if new_rep > new_dem:
