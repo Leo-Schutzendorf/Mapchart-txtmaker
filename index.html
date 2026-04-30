@@ -489,6 +489,54 @@
     border: none;
     cursor: pointer;
   }
+  /* ── Master slider row ──────────────────────────────────────────────────── */
+  .master-slider-section {
+    padding: 1rem 3rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    background: #111;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 1400px;
+  }
+
+  .master-slider-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .master-slider-label::before {
+    content: '◈';
+    font-size: 0.7rem;
+  }
+
+  .master-row {
+    display: grid;
+    grid-template-columns: 130px 50px 1fr 50px 52px 90px;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .master-reset-btn {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+  }
+  .master-reset-btn:hover { color: var(--text); border-color: var(--text); }
+
   /* ── Switch colors toggle ───────────────────────────────────────────────── */
   .toggle-wrap {
     display: flex;
@@ -715,6 +763,19 @@
     If you want to manually reassign specific states to a different winner, you can do so by editing the JSON output after generating the initial results. But nobody wants
     to do that by hand, so use this screen to specify any state-level reassignments you want to make.
   </p>
+
+  <!-- Master slider for all states -->
+  <div class="master-slider-section">
+    <span class="master-slider-label">Master Shift — moves all state sliders together</span>
+    <div class="master-row">
+      <span class="shift-state-label" style="color:var(--accent);">All States</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="master-state-slider">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="master-state-val">0</span>
+      <button class="master-reset-btn" id="master-state-reset">Reset All</button>
+    </div>
+  </div>
 
   <!-- State shift sliders -->
   <div class="shift-sliders">
@@ -1089,6 +1150,20 @@
     Shift the margin for specific sub-state regions (groups of counties defined in specialRegions.py).
     Region shifts stack on top of state-level shifts — positive = toward Republican, negative = toward Democrat.
   </p>
+
+  <!-- Master slider for all regions -->
+  <div class="master-slider-section">
+    <span class="master-slider-label">Master Shift — moves all region sliders together</span>
+    <div class="master-row">
+      <span class="shift-state-label" style="color:var(--accent);">All Regions</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="master-region-slider">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="master-region-val">0</span>
+      <button class="master-reset-btn" id="master-region-reset">Reset All</button>
+    </div>
+  </div>
+
   <div class="shift-sliders">
     {% for region in regions %}
     <div class="shift-row">
@@ -1828,7 +1903,10 @@
   // Positive = toward Republican, negative = toward Democrat.
   // Sent to the server alongside stateShifts; server applies region shifts
   // after state shifts, using the county lists from specialRegions.py.
-  const regionNames = {{ regions | tojson }};
+  // {{ regions | tojson }} is rendered by Flask/Jinja2 at runtime.
+  // When the file is opened directly (no server), fall back to [].
+  const _rawRegions = '{{ regions | tojson }}';
+  const regionNames = _rawRegions.startsWith('{') ? [] : JSON.parse(_rawRegions);
   const regionShifts = Object.fromEntries(regionNames.map(r => [r, 0]));
 
   regionNames.forEach(region => {
@@ -1840,6 +1918,137 @@
       val.textContent = (v > 0 ? '+' : '') + v;
     });
   });
+
+  // ── Master slider: States ─────────────────────────────────────────────────
+  // Tracks the last master value so we can compute a delta on each move.
+  // Delta is added to every individual slider (clamped to ±100).
+  (function() {
+    const masterSlider = document.getElementById('master-state-slider');
+    const masterVal    = document.getElementById('master-state-val');
+    const resetBtn     = document.getElementById('master-state-reset');
+
+    // All individual state slider IDs (derived from the stateShifts keys set up above)
+    const stateSliderIds = [
+      'shift-Alabama','shift-Alaska','shift-Arizona','shift-Arkansas',
+      'shift-California','shift-Colorado','shift-Connecticut','shift-Delaware',
+      'shift-District_of_Columbia','shift-Florida','shift-Georgia','shift-Hawaii',
+      'shift-Idaho','shift-Illinois','shift-Indiana','shift-Iowa','shift-Kansas',
+      'shift-Kentucky','shift-Louisiana','shift-Maine','shift-Maryland',
+      'shift-Massachusetts','shift-Michigan','shift-Minnesota','shift-Mississippi',
+      'shift-Missouri','shift-Montana','shift-Nebraska','shift-Nevada',
+      'shift-New-Hampshire','shift-New-Jersey','shift-New-Mexico','shift-New-York',
+      'shift-North-Carolina','shift-North-Dakota','shift-Ohio','shift-Oklahoma',
+      'shift-Oregon','shift-Pennsylvania','shift-Rhode-Island','shift-South-Carolina',
+      'shift-South-Dakota','shift-Tennessee','shift-Texas','shift-Utah',
+      'shift-Vermont','shift-Virginia','shift-Washington-state','shift-West-Virginia',
+      'shift-Wisconsin','shift-Wyoming'
+    ];
+
+    // Map slider id → stateShifts key
+    const idToKey = {
+      'shift-Alabama':'Alabama','shift-Alaska':'Alaska','shift-Arizona':'Arizona',
+      'shift-Arkansas':'Arkansas','shift-California':'California',
+      'shift-Colorado':'Colorado','shift-Connecticut':'Connecticut',
+      'shift-Delaware':'Delaware','shift-District_of_Columbia':'District_of_Columbia',
+      'shift-Florida':'Florida','shift-Georgia':'Georgia','shift-Hawaii':'Hawaii',
+      'shift-Idaho':'Idaho','shift-Illinois':'Illinois','shift-Indiana':'Indiana',
+      'shift-Iowa':'Iowa','shift-Kansas':'Kansas','shift-Kentucky':'Kentucky',
+      'shift-Louisiana':'Louisiana','shift-Maine':'Maine','shift-Maryland':'Maryland',
+      'shift-Massachusetts':'Massachusetts','shift-Michigan':'Michigan',
+      'shift-Minnesota':'Minnesota','shift-Mississippi':'Mississippi',
+      'shift-Missouri':'Missouri','shift-Montana':'Montana','shift-Nebraska':'Nebraska',
+      'shift-Nevada':'Nevada','shift-New-Hampshire':'New_Hampshire',
+      'shift-New-Jersey':'New_Jersey','shift-New-Mexico':'New_Mexico',
+      'shift-New-York':'New_York','shift-North-Carolina':'North_Carolina',
+      'shift-North-Dakota':'North_Dakota','shift-Ohio':'Ohio',
+      'shift-Oklahoma':'Oklahoma','shift-Oregon':'Oregon',
+      'shift-Pennsylvania':'Pennsylvania','shift-Rhode-Island':'Rhode_Island',
+      'shift-South-Carolina':'South_Carolina','shift-South-Dakota':'South_Dakota',
+      'shift-Tennessee':'Tennessee','shift-Texas':'Texas','shift-Utah':'Utah',
+      'shift-Vermont':'Vermont','shift-Virginia':'Virginia',
+      'shift-Washington-state':'Washington_state','shift-West-Virginia':'West_Virginia',
+      'shift-Wisconsin':'Wisconsin','shift-Wyoming':'Wyoming'
+    };
+
+    let prevMasterVal = 0;
+
+    masterSlider.addEventListener('input', () => {
+      const newMaster = parseInt(masterSlider.value, 10);
+      const delta = newMaster - prevMasterVal;
+      prevMasterVal = newMaster;
+      masterVal.textContent = (newMaster > 0 ? '+' : '') + newMaster;
+
+      stateSliderIds.forEach(id => {
+        const el = document.getElementById(id);
+        const valEl = document.getElementById(id + '-val');
+        const key = idToKey[id];
+        if (!el || !key) return;
+        const clamped = Math.max(-100, Math.min(100, parseInt(el.value, 10) + delta));
+        el.value = clamped;
+        stateShifts[key] = clamped;
+        valEl.textContent = (clamped > 0 ? '+' : '') + clamped;
+      });
+    });
+
+    resetBtn.addEventListener('click', () => {
+      // Reset master
+      masterSlider.value = 0;
+      prevMasterVal = 0;
+      masterVal.textContent = '0';
+      // Reset all individual state sliders
+      stateSliderIds.forEach(id => {
+        const el = document.getElementById(id);
+        const valEl = document.getElementById(id + '-val');
+        const key = idToKey[id];
+        if (!el || !key) return;
+        el.value = 0;
+        stateShifts[key] = 0;
+        valEl.textContent = '0';
+      });
+    });
+  })();
+
+  // ── Master slider: Regions ────────────────────────────────────────────────
+  (function() {
+    const masterSlider = document.getElementById('master-region-slider');
+    const masterVal    = document.getElementById('master-region-val');
+    const resetBtn     = document.getElementById('master-region-reset');
+
+    let prevMasterVal = 0;
+
+    masterSlider.addEventListener('input', () => {
+      const newMaster = parseInt(masterSlider.value, 10);
+      const delta = newMaster - prevMasterVal;
+      prevMasterVal = newMaster;
+      masterVal.textContent = (newMaster > 0 ? '+' : '') + newMaster;
+
+      regionNames.forEach(region => {
+        const el = document.getElementById('shift-region-' + region);
+        const valEl = document.getElementById('shift-region-' + region + '-val');
+        if (!el) return;
+        const clamped = Math.max(-100, Math.min(100, parseInt(el.value, 10) + delta));
+        el.value = clamped;
+        regionShifts[region] = clamped;
+        valEl.textContent = (clamped > 0 ? '+' : '') + clamped;
+      });
+    });
+
+    resetBtn.addEventListener('click', () => {
+      // Reset master
+      masterSlider.value = 0;
+      prevMasterVal = 0;
+      masterVal.textContent = '0';
+      // Reset all individual region sliders
+      regionNames.forEach(region => {
+        const el = document.getElementById('shift-region-' + region);
+        const valEl = document.getElementById('shift-region-' + region + '-val');
+        if (!el) return;
+        el.value = 0;
+        regionShifts[region] = 0;
+        valEl.textContent = '0';
+      });
+    });
+  })();
 </script>
 </body>
 </html>
