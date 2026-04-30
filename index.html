@@ -388,7 +388,8 @@
   }
   #apply-btn:hover { opacity: 0.85; }
   /* Shift screen — mirrors reassign screen layout */
-  #shift-screen {
+  #shift-screen,
+  #shift-regions-screen {
     display: none;
     flex-direction: column;
     gap: 0;
@@ -569,6 +570,7 @@
 
     <button id="customize-btn" class="btn-secondary">Reassign other votes</button>
     <button id="shift-btn" class="btn-secondary">Shift states</button>
+    <button id="shift-regions-btn" class="btn-secondary">Shift regions</button>
 
     <div class="toggle-wrap">
       <span class="toggle-label">Switch colors</span>
@@ -1074,7 +1076,31 @@
       <span class="shift-rep-label">Rep →</span>
       <span class="shift-value" id="shift-Wyoming-val">0</span>
     </div>  
-</div>
+  </div><!-- /.shift-sliders -->
+</div><!-- /#shift-screen -->
+
+<!--Shift regions screen-->
+<div id="shift-regions-screen" class="screen" style="display: none;">
+  <div class="shift-topbar">
+    <button id="shift-regions-back-btn">← Back</button>
+    <h2>Shift Regions</h2>
+  </div>
+  <p class="shift-description">
+    Shift the margin for specific sub-state regions (groups of counties defined in specialRegions.py).
+    Region shifts stack on top of state-level shifts — positive = toward Republican, negative = toward Democrat.
+  </p>
+  <div class="shift-sliders">
+    {% for region in regions %}
+    <div class="shift-row">
+      <span class="shift-state-label">{{ region | replace('_', ' ') }}</span>
+      <span class="shift-dem-label">← Dem</span>
+      <input type="range" min="-100" max="100" value="0" class="slider" id="shift-region-{{ region }}">
+      <span class="shift-rep-label">Rep →</span>
+      <span class="shift-value" id="shift-region-{{ region }}-val">0</span>
+    </div>
+    {% endfor %}
+  </div>
+</div><!-- /#shift-regions-screen -->
 
 <!-- ════════════════════════════════════════════════════════════════════════════
      JAVASCRIPT
@@ -1125,6 +1151,8 @@
   function showMainScreen() {
     reassignScreen.style.display = 'none';
     shiftScreen.style.display    = 'none';
+    if (document.getElementById('shift-regions-screen'))
+      document.getElementById('shift-regions-screen').style.display = 'none';
     mainScreen.style.display     = 'block';
   }
 
@@ -1153,6 +1181,24 @@
 
   shiftBtn.addEventListener('click', showShiftScreen);
   shiftBackBtn.addEventListener('click', showMainScreenFromShift);
+
+  // Shift regions screen wiring
+  const shiftRegionsBtn      = document.getElementById('shift-regions-btn');
+  const shiftRegionsScreen   = document.getElementById('shift-regions-screen');
+  const shiftRegionsBackBtn  = document.getElementById('shift-regions-back-btn');
+
+  function showShiftRegionsScreen() {
+    mainScreen.style.display        = 'none';
+    shiftRegionsScreen.style.display = 'flex';
+  }
+
+  function showMainScreenFromShiftRegions() {
+    shiftRegionsScreen.style.display = 'none';
+    mainScreen.style.display         = 'block';
+  }
+
+  shiftRegionsBtn.addEventListener('click', showShiftRegionsScreen);
+  shiftRegionsBackBtn.addEventListener('click', showMainScreenFromShiftRegions);
   // Clicking any option card selects it (but doesn't apply yet)
   document.querySelectorAll('.option-card').forEach(card => {
     card.addEventListener('click', () => {
@@ -1233,7 +1279,7 @@
     // Check whether a cached result is available for this year + mode combo.
     // The server caches by (year, otherMode) so changing the mode forces a
     // fresh scrape even if the plain year was cached previously.
-    fetch(`/api/results?year=${year}&otherMode=${otherMode}&stateShifts=${encodeURIComponent(JSON.stringify(stateShifts))}&switchColors=${switchColors}`)
+    fetch(`/api/results?year=${year}&otherMode=${otherMode}&stateShifts=${encodeURIComponent(JSON.stringify(stateShifts))}&regionShifts=${encodeURIComponent(JSON.stringify(regionShifts))}&switchColors=${switchColors}`)
       .then(r => r.json())
       .then(data => {
         if (data.status === 'cached') {
@@ -1260,7 +1306,7 @@
   function startStream(year) {
     progressArea.style.display = 'flex';
 
-    const source = new EventSource(`/api/stream?year=${year}&otherMode=${otherMode}&stateShifts=${encodeURIComponent(JSON.stringify(stateShifts))}&switchColors=${switchColors}`);
+    const source = new EventSource(`/api/stream?year=${year}&otherMode=${otherMode}&stateShifts=${encodeURIComponent(JSON.stringify(stateShifts))}&regionShifts=${encodeURIComponent(JSON.stringify(regionShifts))}&switchColors=${switchColors}`);
     currentSource = source;
 
     source.onmessage = (e) => {
@@ -1343,7 +1389,9 @@
     const suffix = otherMode !== 'none' ? `_${otherMode}` : '';
     const shiftSuffix = Object.entries(stateShifts).filter(([,v]) => v !== 0)
       .map(([k,v]) => `_${k}${v > 0 ? '+' : ''}${v}`).join('');
-    a.download = `election_${yearInput.value}${suffix}${shiftSuffix}.txt`;
+    const regionShiftSuffix = Object.entries(regionShifts).filter(([,v]) => v !== 0)
+      .map(([k,v]) => `_r${k}${v > 0 ? '+' : ''}${v}`).join('');
+    a.download = `election_${yearInput.value}${suffix}${shiftSuffix}${regionShiftSuffix}.txt`;
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -1774,6 +1822,24 @@
     WyomingVal.textContent = (val > 0 ? '+' : '') + val;
   });
 
+
+  // ── Shift regions ────────────────────────────────────────────────────────────
+  // regionShifts maps region name -> shift amount (-100 ... +100).
+  // Positive = toward Republican, negative = toward Democrat.
+  // Sent to the server alongside stateShifts; server applies region shifts
+  // after state shifts, using the county lists from specialRegions.py.
+  const regionNames = {{ regions | tojson }};
+  const regionShifts = Object.fromEntries(regionNames.map(r => [r, 0]));
+
+  regionNames.forEach(region => {
+    const slider = document.getElementById('shift-region-' + region);
+    const val    = document.getElementById('shift-region-' + region + '-val');
+    slider.addEventListener('input', () => {
+      const v = parseInt(slider.value, 10);
+      regionShifts[region] = v;
+      val.textContent = (v > 0 ? '+' : '') + v;
+    });
+  });
 </script>
 </body>
 </html>

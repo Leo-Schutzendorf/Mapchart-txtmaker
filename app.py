@@ -6,6 +6,8 @@ import time
 import csv
 import math
 app = Flask(__name__)
+import specialRegions
+
 
 # ─── Cache ────────────────────────────────────────────────────────────────────
 # Keyed by (year, otherAsDem, otherAsRep) so different other reassignment modes are
@@ -23,7 +25,7 @@ results_cache = {}
 # otherAsDem / otherAsRep: when True, all non-D/R votes are folded into that
 # party's total before deciding a county winner.
 
-def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_shifts=None, switchColors=False):
+def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_shifts=None, region_shifts=None, switchColors=False):
     """Load 2024 county results from the local CSV and bucket them for MapChart.
 
     state_shifts: dict mapping state name (e.g. "Alabama") to a signed integer
@@ -35,16 +37,11 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     import pandas as pd
     if state_shifts is None:
         state_shifts = {}
+    if region_shifts is None:
+        region_shifts = {}
     
     # Switch party colors; Democrats are now red and Republicans blue
     # (controlled by the switchColors parameter passed in from the request)
-
-    """Special Regions: For well known regions that aren't states"""
-    Southern_California = ["Los_Angeles__CA","Orange__CA","San_Diego__CA","Riverside__CA","San_Bernardino__CA"]
-
-    NYC_Metro = ["Bergen__NJ","Essex__NJ","Hudson__NJ","Hunterdon__NJ","Middlesex__NJ","Monmouth__NJ","Morris__NJ","Passaic__NJ","Union__NJ","Somerset__NJ",
-                 "Bronx__NY","Kings__NY","Nassau__NY","New_York__NY","Putnam__NY","Queens__NY","Richmond__NY","Rockland__NY","Suffolk__NY","Westchester__NY",
-                 "Western_Connecticut__CT"]
 
     # ── Vote-bucket lists ──────────────────────────────────────────────────────
     Republican_30_40 = []; Democrat_30_40 = []
@@ -272,6 +269,89 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 else:
                     # 100% edge case — put in the top bucket
                     all_buckets[new_winner][6].append(code)
+    
+    # ── Apply region-level shifts ──────────────────────────────────────────────
+    # Runs after state shifts so both can be active simultaneously.
+    # Uses the county lists from specialRegions.py to find which counties belong
+    # to each region, then re-buckets them exactly like the state-shift logic.
+    if region_shifts:
+        import specialRegions as _sr
+        import inspect as _inspect
+
+        # Build region_name -> [county_codes] from specialRegions module
+        region_counties = {
+            name: val
+            for name, val in _inspect.getmembers(_sr)
+            if isinstance(val, list) and not name.startswith('_')
+        }
+
+        # Build reverse lookup: county_code -> total shift (summed across all regions it's in)
+        county_region_shift: dict = {}
+        for region_name, shift in region_shifts.items():
+            if shift == 0:
+                continue
+            counties = region_counties.get(region_name, [])
+            for code in counties:
+                county_region_shift[code] = county_region_shift.get(code, 0) + shift
+
+        if county_region_shift:
+            all_buckets_r = {
+                'Republican': [Republican_30_40, Republican_40_50, Republican_50_60,
+                               Republican_60_70, Republican_70_80, Republican_80_90,
+                               Republican_90_100],
+                'Democrat':   [Democrat_30_40, Democrat_40_50, Democrat_50_60,
+                               Democrat_60_70, Democrat_70_80, Democrat_80_90,
+                               Democrat_90_100],
+            }
+            bucket_ranges_r = [(30,40,0),(40,50,1),(50,60,2),(60,70,3),(70,80,4),(80,90,5),(90,101,6)]
+            row_by_code_r = {r['County__State_Code']: r for r in rows}
+
+            for code, shift in county_region_shift.items():
+                row = row_by_code_r.get(code)
+                if row is None:
+                    continue
+
+                try:
+                    dem_pct = float(row.get('Democrat_Pct') or 0)
+                    rep_pct = float(row.get('Republican_Pct') or 0)
+                except (ValueError, TypeError):
+                    continue
+
+                new_dem = max(0.0, dem_pct - shift)
+                new_rep = max(0.0, rep_pct + shift)
+
+                if new_rep > 100:
+                    new_rep = 100.0; new_dem = 0.0
+                if new_dem > 100:
+                    new_dem = 100.0; new_rep = 0.0
+
+                if otherAsRep:
+                    new_rep = 100.0 - new_dem
+                elif otherAsDem:
+                    new_dem = 100.0 - new_rep
+
+                if new_rep > new_dem:
+                    new_winner, new_pct = 'Republican', new_rep
+                elif new_dem > new_rep:
+                    new_winner, new_pct = 'Democrat', new_dem
+                else:
+                    continue  # tie — leave as-is
+
+                # Remove from current bucket
+                for party_buckets in all_buckets_r.values():
+                    for b in party_buckets:
+                        if code in b:
+                            b.remove(code)
+                if code in tie:
+                    tie.remove(code)
+
+                # Insert into new bucket
+                for lo, hi, idx in bucket_ranges_r:
+                    if lo <= new_pct < hi:
+                        all_buckets_r[new_winner][idx].append(code)
+                        break
+                else:
+                    all_buckets_r[new_winner][6].append(code)
 
     # ── Build final MapChart JSON output ───────────────────────────────────────
     if switchColors:
@@ -370,10 +450,11 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     progress_queue.put({"type": "done", "data": output})
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
-
-@app.route("/")
+"""For shifting special regions"""
+@app.route('/')
 def index():
-    return render_template("index.html")
+    regions = [name for name in dir(specialRegions) if not name.startswith('_')]
+    return render_template('index.html', regions=regions)
 
 
 @app.route("/api/results")
@@ -382,6 +463,7 @@ def results():
     year          = request.args.get("year", "").strip()
     other_mode    = request.args.get("otherMode", "none")  # "dem", "rep", or "none"
     shifts_raw    = request.args.get("stateShifts", "{}")  # JSON string, e.g. '{"Alabama":30}'
+    regions_raw   = request.args.get("regionShifts", "{}")
     switch_colors = request.args.get("switchColors", "false").lower() == "true"
 
     if not year.isdigit() or not (1788 <= int(year) <= 2100):
@@ -394,8 +476,14 @@ def results():
     except (ValueError, TypeError):
         state_shifts = {}
 
+    try:
+        region_shifts = json.loads(regions_raw)
+        region_shifts = {k: int(v) for k, v in region_shifts.items() if int(v) != 0}
+    except (ValueError, TypeError):
+        region_shifts = {}
+
     # Cache key includes shifts and switchColors so each unique combination is stored separately
-    cache_key = (year, other_mode, json.dumps(state_shifts, sort_keys=True), switch_colors)
+    cache_key = (year, other_mode, json.dumps(state_shifts, sort_keys=True), json.dumps(region_shifts, sort_keys=True), switch_colors)
     if cache_key in results_cache:
         return jsonify({"status": "cached", "data": results_cache[cache_key]})
 
@@ -419,6 +507,7 @@ def stream():
     year          = request.args.get("year", "").strip()
     other_mode    = request.args.get("otherMode", "none")
     shifts_raw    = request.args.get("stateShifts", "{}")
+    regions_raw   = request.args.get("regionShifts", "{}")
     switch_colors = request.args.get("switchColors", "false").lower() == "true"
 
     if not year.isdigit() or not (1788 <= int(year) <= 2100):
@@ -432,7 +521,13 @@ def stream():
     except (ValueError, TypeError):
         state_shifts = {}
 
-    cache_key = (year, other_mode, json.dumps(state_shifts, sort_keys=True), switch_colors)
+    try:
+        region_shifts = json.loads(regions_raw)
+        region_shifts = {k: int(v) for k, v in region_shifts.items() if int(v) != 0}
+    except (ValueError, TypeError):
+        region_shifts = {}
+
+    cache_key = (year, other_mode, json.dumps(state_shifts, sort_keys=True), json.dumps(region_shifts, sort_keys=True), switch_colors)
 
     if cache_key in results_cache:
         def cached():
@@ -447,7 +542,8 @@ def stream():
     def scrape_thread():
         run_scraper(year, progress_queue,
                     otherAsDem=otherAsDem, otherAsRep=otherAsRep,
-                    state_shifts=state_shifts, switchColors=switch_colors)
+                    state_shifts=state_shifts, region_shifts=region_shifts,
+                    switchColors=switch_colors)
 
     thread = threading.Thread(target=scrape_thread, daemon=True)
     thread.start()
