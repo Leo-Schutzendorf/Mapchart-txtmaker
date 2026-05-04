@@ -25,6 +25,21 @@ AZ_Other_Arizona = ["La_Paz__AZ","Cochise__AZ","Santa_Cruz__AZ","Greenlee__AZ","
 
 AZ_Phoenix_Tucson = ["Maricopa__AZ","Pinal__AZ","Pima__AZ"]
 
+"""Arkansas"""
+AR_Central_Arkansas = ["Conway__AR","Faulkner__AR","White__AR","Lonoke__AR","Pulaski__AR","Saline__AR","Garland__AR","Perry__AR","Hot_Spring__AR",
+                       "Grant__AR"]
+
+AR_East_Arkansas = ["Jefferson__AR","Lincoln__AR","Drew__AR","Ashley__AR","Chicot__AR","Desha__AR","Arkansas__AR","Monroe__AR","Prairie__AR",
+                    "Woodruff__AR","Jackson__AR","Poinsett__AR","Craighead__AR","Greene__AR","Clay__AR","Mississippi__AR","Crittenden__AR","Cross__AR",
+                    "St__Francis__AR","Lee__AR","Phillips__AR","Cleveland__AR","Bradley__AR"]
+
+AR_North_Arkansas = ["Washington__AR","Benton__AR","Franklin__AR","Newton__AR","Boone__AR","Carroll__AR","Madison__AR","Crawford__AR","Logan__AR",
+                     "Yell__AR","Pope__AR","Independence__AR","Cleburne__AR","Stone__AR","Van_Buren__AR","Johnson__AR","Searcy__AR","Baxter__AR",
+                     "Marion__AR","Izard__AR","Sharp__AR","Fulton__AR","Lawrence__AR","Randolph__AR","Sebastian__AR"]
+
+AR_Southwest_Arkansas = ["Union__AR","Columbia__AR","Lafayette__AR","Miller__AR","Little_River__AR","Sevier__AR","Howard__AR","Polk__AR","Scott__AR",
+                         "Montgomery__AR","Pike__AR","Hempstead__AR","Nevada__AR","Ouachita__AR","Clark__AR","Dallas__AR","Calhoun__AR"]
+
 """California"""
 CA_Bay_Area = ["Alameda__CA","Contra_Costa__CA","Marin__CA","Napa__CA","San_Francisco__CA","San_Mateo__CA","Santa_Clara__CA","Solano__CA","Sonoma__CA"]
 
@@ -165,6 +180,23 @@ IA_West_Iowa = ["Taylor__IA","Adams__IA","Cass__IA","Adair__IA","Guthrie__IA","G
                 "Dickinson__IA","Osceola__IA","Lyon__IA","Sioux__IA","Plymouth__IA","Woodbury__IA","Monona__IA","Harrison__IA","Pottawattamie__IA","Montgomery__IA","Page__IA",
                 "Fremont__IA","Mills__IA","Shelby__IA","Audubon__IA","Crawford__IA","Ida__IA","Sac__IA","Buena_Vista__IA","Clay__IA","O_Brien__IA","Cherokee__IA"]
 
+"""Kentucky"""
+KY_East_Kentucky = ["Bell__KY","Harlan__KY","Perry__KY","Breathitt__KY","Wolfe__KY","Menifee__KY","Morgan__KY","Elliott__KY","Carter__KY","Greenup__KY","Boyd__KY","Lawrence__KY",
+                    "Johnson__KY","Floyd__KY","Knott__KY","Magoffin__KY","Martin__KY","Pike__KY","Letcher__KY"]
+
+KY_North_Kentucky = ["Jefferson__KY","Hancock__KY","Breckinridge__KY","Meade__KY","Hardin__KY","Bullitt__KY","Nelson__KY","Washington__KY","Larue__KY","Marion__KY","Boyle__KY",
+                     "Garrard__KY","Madison__KY","Estill__KY","Powell__KY","Rowan__KY","Lewis__KY","Fleming__KY","Robertson__KY","Mason__KY","Bracken__KY","Pendleton__KY",
+                     "Grant__KY","Gallatin__KY","Carroll__KY","Trimble__KY","Oldham__KY","Shelby__KY","Anderson__KY","Woodford__KY","Fayette__KY","Jessamine__KY","Mercer__KY",
+                     "Spencer__KY","Henry__KY","Owen__KY","Scott__KY","Harrison__KY","Bourbon__KY","Nicholas__KY","Bath__KY","Montgomery__KY","Clark__KY","Franklin__KY"]
+
+KY_South_Kentucky = ["Owsley__KY","Clay__KY","Leslie__KY","Knox__KY","Whitley__KY","McCreary__KY","Wayne__KY","Clinton__KY","Cumberland__KY","Metcalfe__KY","Monroe__KY","Barren__KY",
+                     "Allen__KY","Warren__KY","Butler__KY","Grayson__KY","Hart__KY","Edmonson__KY","Green__KY","Taylor__KY","Adair__KY","Casey__KY","Lincoln__KY","Rockcastle__KY",
+                     "Jackson__KY","Laurel__KY","Pulaski__KY","Russell__KY","Lee__KY"]
+                     
+KY_West_Kentucky = ["Simpson__KY","Logan__KY","Muhlenberg__KY","Ohio__KY","Daviess__KY","Henderson__KY","Union__KY","Webster__KY","Hopkins__KY","McLean__KY","Christian__KY",
+                    "Todd__KY","Trigg__KY","Marshall__KY","Calloway__KY","Graves__KY","Fulton__KY","Hickman__KY","Carlisle__KY","Ballard__KY","McCracken__KY","Livingston__KY",
+                    "Lyon__KY","Caldwell__KY","Crittenden__KY"]
+
 """Louisiana"""
 LA_North_Louisiana = ["Red_River__LA","Bienville__LA","Lincoln__LA","Jackson__LA","Winn__LA","Caldwell__LA","Ouachita__LA","Richland__LA","Franklin__LA","Tensas__LA",
                       "Madison__LA","East_Carroll__LA","West_Carroll__LA","Morehouse__LA","Union__LA","Claiborne__LA","Webster__LA","Bossier__LA","Caddo__LA","De_Soto__LA",
@@ -206,6 +238,22 @@ MI_Southwest_Michigan = ["Allegan__MI","Barry__MI","Berrien__MI","Branch__MI","C
 MI_Upper_Peninsula = ["Keweenaw__MI","Houghton__MI","Ontonagon__MI","Gogebic__MI","Iron__MI","Marquette__MI","Baraga__MI","Delta__MI","Menominee__MI","Dickinson__MI",
                    "Schoolcraft__MI","Luce__MI","Alger__MI","Chippewa__MI","Mackinac__MI"]
 
+"""Minnesota"""
+MN_Central_Minnesota = ["Norman__MN","Mahnomen__MN","Clay__MN","Traverse__MN","Grant__MN","Stevens__MN","Pope__MN","Stearns__MN","Morrison__MN","Benton__MN","Mille_Lacs__MN",
+                        "Kanabec__MN","Pine__MN","Aitkin__MN","Crow_Wing__MN","Cass__MN","Hubbard__MN","Becker__MN","Otter_Tail__MN","Wilkin__MN","Douglas__MN","Todd__MN",
+                        "Wadena__MN"]
+
+MN_Minneapolis_St_Paul = ["Carver__MN","Wright__MN","Hennepin__MN","Scott__MN","Dakota__MN","Ramsey__MN","Anoka__MN","Washington__MN","Sherburne__MN","Isanti__MN",
+                          "Chisago__MN","St__Croix__WI","Pierce__WI"]
+
+MN_North_Minnesota = ["Koochiching__MN","Lake_of_the_Woods__MN","Roseau__MN","Kittson__MN","Red_Lake__MN","Pennington__MN","Marshall__MN","Polk__MN","Clearwater__MN",
+                      "Beltrami__MN","Cook__MN","Lake__MN","Itasca__MN","St__Louis__MN","Carlton__MN"]
+
+MN_South_Minnesota = ["Meeker__MN","Kandiyohi__MN","Swift__MN","Big_Stone__MN","Lac_qui_Parle__MN","Chippewa__MN","Renville__MN","Lyon__MN","Murray__MN","Pipestone__MN",
+                      "Rock__MN","Nobles__MN","Jackson__MN","Martin__MN","Faribault__MN","Freeborn__MN","Mower__MN","Fillmore__MN","Winona__MN","Houston__MN","Wabasha__MN",
+                      "Goodhue__MN","Rice__MN","Le_Sueur__MN","Blue_Earth__MN","Nicollet__MN","Sibley__MN","McLeod__MN","Redwood__MN","Lincoln__MN","Yellow_Medicine__MN",
+                      "Brown__MN","Watonwan__MN","Cottonwood__MN","Waseca__MN","Steele__MN","Dodge__MN","Olmsted__MN"]
+
 """Mississippi"""
 MS_Central_Mississippi = ["Hinds__MS","Madison__MS","Copiah__MS","Simpson__MS","Rankin__MS","Scott__MS","Smith__MS","Warren__MS"]
 
@@ -243,12 +291,46 @@ MO_Southwest_Missouri = ["Bates__MO","Vernon__MO","St__Clair__MO","Cedar__MO","P
 
 MO_St_Louis_Metro = ["Monroe__IL","St__Clair__IL","Madison__IL","Franklin__MO","Jefferson__MO","St__Charles__MO","St__Louis__MO","St__Louis_Co___MO","Warren__MO"]
 
+"""Montana"""
+MT_East_Montana = ["Sheridan__MT","Roosevelt__MT","Liberty__MT","Toole__MT","Hill__MT","Chouteau__MT","Judith_Basin__MT","Wheatland__MT","Golden_Valley__MT","Fergus__MT",
+                   "Blaine__MT","Phillips__MT","Petroleum__MT","Musselshell__MT","Yellowstone__MT","Big_Horn__MT","Treasure__MT","Rosebud__MT","Garfield__MT","Daniels__MT",
+                   "Valley__MT","McCone__MT","Prairie__MT","Powder_River__MT","Custer__MT","Carter__MT","Fallon__MT","Wibaux__MT","Dawson__MT","Richland__MT"]
+
+MT_Montana_Rockies = ["Beaverhead__MT","Madison__MT","Gallatin__MT","Flathead__MT","Powell__MT","Jefferson__MT","Silver_Bow__MT","Deer_Lodge__MT","Ravalli__MT","Granite__MT",
+                      "Missoula__MT","Mineral__MT","Lincoln__MT","Sanders__MT","Lake__MT","Lewis_and_Clark__MT","Broadwater__MT","Carbon__MT","Park__MT","Sweet_Grass__MT",
+                      "Glacier__MT","Pondera__MT","Teton__MT","Meagher__MT","Cascade__MT","Stillwater__MT"]
+
+"""Nebraska"""
+NE_Northeast_Nebraska = ["Washington__NE","Dodge__NE","Colfax__NE","Platte__NE","Nance__NE","Boone__NE","Antelope__NE","Holt__NE","Boyd__NE","Wheeler__NE","Greeley__NE",
+                         "Pierce__NE","Valley__NE","Garfield__NE","Madison__NE","Cuming__NE","Stanton__NE","Wayne__NE","Knox__NE","Cedar__NE","Burt__NE","Dixon__NE",
+                         "Dakota__NE","Thurston__NE"]
+
+NE_Southeast_Nebraska = ["Merrick__NE","Hamilton__NE","Clay__NE","Nuckolls__NE","Thayer__NE","Jefferson__NE","Gage__NE","Pawnee__NE","Richardson__NE","Nemaha__NE",
+                         "Johnson__NE","Otoe__NE","Cass__NE","Sarpy__NE","Douglas__NE","Saunders__NE","Butler__NE","Seward__NE","York__NE","Fillmore__NE","Saline__NE",
+                         "Lancaster__NE","Polk__NE","Howard__NE","Hall__NE","Adams__NE","Webster__NE"]
+
+NE_West_Nebraska = ["Dawes__NE","Sioux__NE","Sherman__NE","Loup__NE","Rock__NE","Keya_Paha__NE","Brown__NE","Blaine__NE","Custer__NE","Buffalo__NE","Dawson__NE","Phelps__NE",
+                    "Kearney__NE","Franklin__NE","Harlan__NE","Gosper__NE","Furnas__NE","Red_Willow__NE","Hitchcock__NE","Dundy__NE","Frontier__NE","Hayes__NE","Chase__NE",
+                    "Perkins__NE","Lincoln__NE","Keith__NE","Logan__NE","McPherson__NE","Arthur__NE","Thomas__NE","Hooker__NE","Grant__NE","Deuel__NE","Garden__NE",
+                    "Cheyenne__NE","Morrill__NE","Kimball__NE","Banner__NE","Scotts_Bluff__NE","Box_Butte__NE","Cherry__NE","Sheridan__NE"]
+
+"""Nevada"""
+NV_Nevada = ["Elko__NV","White_Pine__NV","Clark__NV","Lincoln__NV","Esmeralda__NV","Nye__NV","Eureka__NV","Lander__NV","Mineral__NV","Douglas__NV","Carson_City__NV","Lyon__NV",
+             "Churchill__NV","Pershing__NV","Storey__NV","Washoe__NV","Humboldt__NV"]
+
 """New Hampshire"""
 NH_New_Hampshire = ["Cheshire__NH","Hillsborough__NH","Rockingham__NH","Strafford__NH","Carroll__NH","Coos__NH","Grafton__NH","Sullivan__NH","Merrimack__NH",
                  "Belknap__NH"]
 
 """New Jersey"""
 NJ_Non_Metropolitan_New_Jersey = ["Sussex__NJ","Warren__NJ","Ocean__NJ","Cumberland__NJ","Salem__NJ","Atlantic__NJ","Cape_May__NJ"]
+
+"""New Mexico"""
+NM_East_New_Mexico = ["Lea__NM","Eddy__NM","Otero__NM","Lincoln__NM","Colfax__NM","Mora__NM","Union__NM","Harding__NM","San_Miguel__NM","Quay__NM","Guadalupe__NM",
+                      "De_Baca__NM","Curry__NM","Roosevelt__NM","Chaves__NM"]
+
+NM_West_New_Mexico = ["Santa_Fe__NM","Taos__NM","Sandoval__NM","Bernalillo__NM","Valencia__NM","Torrance__NM","Socorro__NM","Sierra__NM","Dona_Ana__NM","Luna__NM",
+                      "Grant__NM","Catron__NM","Cibola__NM","McKinley__NM","San_Juan__NM","Rio_Arriba__NM","Los_Alamos__NM","Hidalgo__NM"]
 
 """New York"""
 NY_Central_New_York = ["Cayuga__NY","Chenango__NY","Cortland__NY","Chemung__NY","Herkimer__NY","Madison__NY","Broome__NY","Otsego__NY","Tioga__NY","Schuyler__NY",
@@ -284,6 +366,28 @@ NC_Southeast_North_Carolina = ["Brunswick__NC","Columbus__NC","New_Hanover__NC",
 NC_West_North_Carolina = ["Cherokee__NC","Clay__NC","Macon__NC","Jackson__NC","Transylvania__NC","Henderson__NC","Polk__NC","Rutherford__NC","Burke__NC","Caldwell__NC",
                        "Wilkes__NC","Alleghany__NC","Ashe__NC","Watauga__NC","Avery__NC","Mitchell__NC","Yancey__NC","Buncombe__NC","Haywood__NC","Swain__NC","Graham__NC",
                        "Madison__NC","McDowell__NC","Cleveland__NC","Alexander__NC"]
+
+"""North Dakota"""
+ND_North_Dakota = ["Cass__ND","Richland__ND","Burke__ND","Divide__ND","Williams__ND","Mountrail__ND","McKenzie__ND","Dunn__ND","Stark__ND","Golden_Valley__ND","Billings__ND",
+                   "Bowman__ND","Slope__ND","Hettinger__ND","Adams__ND","Mercer__ND","Grant__ND","Sioux__ND","Morton__ND","Oliver__ND","Renville__ND","Ward__ND","McLean__ND",
+                   "Bottineau__ND","McHenry__ND","Sheridan__ND","Burleigh__ND","Emmons__ND","McIntosh__ND","Logan__ND","Kidder__ND","Wells__ND","Pierce__ND","Rolette__ND","Towner__ND",
+                   "Benson__ND","Eddy__ND","Foster__ND","Stutsman__ND","LaMoure__ND","Dickey__ND","Sargent__ND","Ransom__ND","Barnes__ND","Griggs__ND","Steele__ND","Nelson__ND",
+                   "Ramsey__ND","Cavalier__ND","Pembina__ND","Walsh__ND","Grand_Forks__ND","Traill__ND"]
+
+"""Oklahoma"""
+OK_Central_Oklahoma = ["McClain__OK","Cleveland__OK","Oklahoma__OK","Canadian__OK","Logan__OK","Pottawatomie__OK","Grady__OK","Kingfisher__OK","Payne__OK","Lincoln__OK"]
+
+OK_Northeast_Oklahoma = ["Okfuskee__OK","Creek__OK","Noble__OK","Kay__OK","Pawnee__OK","Washington__OK","Nowata__OK","Osage__OK","Tulsa__OK","Okmulgee__OK","McIntosh__OK",
+                         "Muskogee__OK","Cherokee__OK","Adair__OK","Sequoyah__OK","Delaware__OK","Ottawa__OK","Craig__OK","Rogers__OK","Wagoner__OK","Mayes__OK"]
+
+OK_Northwest_Oklahoma = ["Dewey__OK","Custer__OK","Blaine__OK","Woodward__OK","Ellis__OK","Harper__OK","Woods__OK","Major__OK","Garfield__OK","Grant__OK","Alfalfa__OK","Beaver__OK",
+                         "Texas__OK","Cimarron__OK"]
+
+OK_Southeast_Oklahoma = ["Marshall__OK","Johnston__OK","Pontotoc__OK","Seminole__OK","Hughes__OK","Haskell__OK","Le_Flore__OK","Pittsburg__OK","Coal__OK","Atoka__OK","Bryan__OK",
+                         "Choctaw__OK","Pushmataha__OK","Latimer__OK","McCurtain__OK"]
+
+OK_Southwest_Oklahoma = ["Love__OK","Carter__OK","Garvin__OK","Caddo__OK","Kiowa__OK","Washita__OK","Beckham__OK","Greer__OK","Harmon__OK","Roger_Mills__OK","Jackson__OK",
+                         "Tillman__OK","Comanche__OK","Cotton__OK","Stephens__OK","Jefferson__OK","Murray__OK"]
 
 """Ohio"""
 OH_Central_Ohio = ["Franklin__OH","Delaware__OH","Union__OH","Madison__OH","Licking__OH","Fairfield__OH","Pickaway__OH","Fayette__OH","Athens__OH","Hocking__OH","Perry__OH",
@@ -325,6 +429,30 @@ PA_South_Pennsylvania = ["Berks__PA","Lancaster__PA","Lebanon__PA","Dauphin__PA"
 
 PA_West_Pennsylvania = ["Clarion__PA","Lawrence__PA","Mercer__PA","Venango__PA","Crawford__PA","Erie__PA","Armstrong__PA","Butler__PA","Beaver__PA","Washington__PA",
                      "Greene__PA","Fayette__PA","Somerset__PA","Westmoreland__PA","Allegheny__PA","Indiana__PA"]
+
+"""Rhode Island"""
+RI_Rhode_Island = ["Kent__RI","Providence__RI","Bristol__RI","Newport__RI","Washington__RI"]
+
+"""South Carolina"""
+SC_Midlands = ["Aiken__SC","Chester__SC","Edgefield__SC","Fairfield__SC","Lancaster__SC","Kershaw__SC","McCormick__SC","Lexington__SC","Newberry__SC","Saluda__SC",
+               "Richland__SC","York__SC"]
+
+SC_Pee_Dee = ["Horry__SC","Sumter__SC","Clarendon__SC","Lee__SC","Chesterfield__SC","Marlboro__SC","Dillon__SC","Florence__SC","Marion__SC","Darlington__SC",
+              "Williamsburg__SC","Georgetown__SC"]
+
+SC_South_South_Carolina = ["Calhoun__SC","Bamberg__SC","Barnwell__SC","Allendale__SC","Hampton__SC","Jasper__SC","Beaufort__SC","Colleton__SC","Charleston__SC",
+                           "Dorchester__SC","Berkeley__SC","Orangeburg__SC"]
+
+SC_Upstate = ["Oconee__SC","Pickens__SC","Greenville__SC","Spartanburg__SC","Anderson__SC","Abbeville__SC","Cherokee__SC","Greenwood__SC","Laurens__SC","Union__SC"]
+
+"""South Dakota"""
+SD_South_Dakota = ["Perkins__SD","Harding__SD","Custer__SD","Fall_River__SD","Oglala_Lakota__SD","Bennett__SD","Mellette__SD","Todd__SD","Tripp__SD","Gregory__SD",
+                   "Brule__SD","Aurora__SD","Davison__SD","Douglas__SD","Charles_Mix__SD","Bon_Homme__SD","Yankton__SD","Hutchinson__SD","Hanson__SD","McCook__SD",
+                   "Turner__SD","Clay__SD","Union__SD","Lincoln__SD","Minnehaha__SD","Lyman__SD","Jones__SD","Jackson__SD","Stanley__SD","Haakon__SD","Pennington__SD",
+                   "Lawrence__SD","Butte__SD","Meade__SD","Ziebach__SD","Dewey__SD","Walworth__SD","Potter__SD","Sully__SD","Hughes__SD","Buffalo__SD","Jerauld__SD",
+                   "Sanborn__SD","Miner__SD","Lake__SD","Moody__SD","Brookings__SD","Hamlin__SD","Kingsbury__SD","Beadle__SD","Hyde__SD","Hand__SD","Edmunds__SD",
+                   "Faulk__SD","Spink__SD","Clark__SD","Codington__SD","Deuel__SD","Grant__SD","Day__SD","Roberts__SD","Marshall__SD","Brown__SD","McPherson__SD",
+                   "Campbell__SD","Corson__SD"]
 
 """Tennessee"""
 TN_East_Tennessee = ["Johnson__TN","Carter__TN","Unicoi__TN","Greene__TN","Cocke__TN","Sevier__TN","Blount__TN","Monroe__TN","Polk__TN","Hamilton__TN","Rhea__TN",
@@ -433,6 +561,18 @@ WV_Non_DC_Metro_West_Virginia = ["Berkeley__WV","Morgan__WV","Hampshire__WV","Ha
                                  "Boone__WV","Clay__WV","Roane__WV","Calhoun__WV","Gilmer__WV","Ritchie__WV","Doddridge__WV","Hancock__WV","Brooke__WV","Ohio__WV",
                                  "Marshall__WV","Wetzel__WV","Marion__WV","Monongalia__WV","Preston__WV","Harrison__WV","Taylor__WV","Tyler__WV","Pleasants__WV","Wood__WV",
                                  "Wirt__WV","Jackson__WV","Mason__WV","Cabell__WV"]
+
+"""Wisconsin"""
+WI_Driftless_Area = ["Green__WI","Lafayette__WI","Iowa__WI","Grant__WI","Crawford__WI","Richland__WI","Sauk__WI","Vernon__WI","La_Crosse__WI","Pepin__WI","Dunn__WI","Buffalo__WI",
+                     "Trempealeau__WI","Jackson__WI","Monroe__WI","Juneau__WI"]
+
+WI_East_Wisconsin = ["Dane__WI","Rock__WI","Walworth__WI","Jefferson__WI","Waukesha__WI","Racine__WI","Kenosha__WI","Milwaukee__WI","Washington__WI","Ozaukee__WI","Columbia__WI",
+                     "Adams__WI","Marquette__WI","Waushara__WI","Green_Lake__WI","Dodge__WI","Fond_du_Lac__WI","Sheboygan__WI","Manitowoc__WI","Calumet__WI","Winnebago__WI",
+                     "Brown__WI","Outagamie__WI","Waupaca__WI","Kewaunee__WI","Door__WI"]
+
+WI_North_Wisconsin = ["Polk__WI","Burnett__WI","Washburn__WI","Douglas__WI","Bayfield__WI","Sawyer__WI","Ashland__WI","Price__WI","Iron__WI","Vilas__WI","Oneida__WI",
+                      "Rusk__WI","Barron__WI","Lincoln__WI","Langlade__WI","Forest__WI","Oconto__WI","Marinette__WI","Florence__WI","Menominee__WI","Chippewa__WI","Taylor__WI",
+                      "Clark__WI","Marathon__WI","Shawano__WI","Eau_Claire__WI","Wood__WI","Portage__WI"]
 
 """Wyoming"""
 WY_Wyoming = ["Uinta__WY","Lincoln__WY","Sublette__WY","Teton__WY","Park__WY","Big_Horn__WY","Washakie__WY","Johnson__WY","Campbell__WY","Crook__WY","Sheridan__WY",
