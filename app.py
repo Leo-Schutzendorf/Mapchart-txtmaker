@@ -150,6 +150,8 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     with open(str(year) + 'results.csv', mode='r', encoding="utf-8") as file:
         reader = csv.DictReader(file)
         rows = list(reader)
+    
+
 
     '''
     Reads County__State_Code, Winner, and Winner_Pct columns by name
@@ -164,15 +166,31 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
             rep_pct=county.get('Republican_Pct'),
         )
 
-        "For counties that didn't exist yet, use the county it was part of."
+        """For counties that didn't exist yet, use the county it was part of."""
         if county['County__State_Code']=="Yuma__AZ" and int(year)<1984:
             bucket_county("La_Paz__AZ", county['Winner_Pct'], county['Winner'],
                           dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
         if county['County__State_Code']=="Valencia__NM" and int(year)<1984:
             bucket_county("Cibola__NM", county['Winner_Pct'], county['Winner'],
                           dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+            
+        """Virginia has a lot of these"""
+        if county['County__State_Code']=="Prince_William__VA" and int(year)<1976:
+            bucket_county("Manassas__VA", county['Winner_Pct'], county['Winner'],
+                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+            bucket_county("Manassas_Park__VA", county['Winner_Pct'], county['Winner'],
+                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
         if county['County__State_Code']=="York__VA" and int(year)<1976:
             bucket_county("Poquoson__VA", county['Winner_Pct'], county['Winner'],
+                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+        if county['County__State_Code']=="Roanoke_Co___VA" and int(year)<1968:
+            bucket_county("Salem__VA", county['Winner_Pct'], county['Winner'],
+                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+        if county['County__State_Code']=="Rockbridge__VA" and int(year)<1968:
+            bucket_county("Lexington__VA", county['Winner_Pct'], county['Winner'],
+                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+        if county['County__State_Code']=="Rockbridge__VA" and int(year)<1968:
+            bucket_county("Lexington__VA", county['Winner_Pct'], county['Winner'],
                           dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
 
     # ── Apply state-level shifts ───────────────────────────────────────────────
@@ -193,7 +211,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                            Democrat_60_70, Democrat_70_80, Democrat_80_90,
                            Democrat_90_100],
         }
-        bucket_ranges = [(30,40,0),(40,50,1),(50,60,2),(60,70,3),(70,80,4),(80,90,5),(90,101,6)]
+        bucket_ranges = [(30,40,0),(40,50,1),(50,60,2),(60,70,3),(70,80,4),(80,90,5),(90,69420,6)]
 
         # Index rows by County__State_Code for fast lookup
         row_by_code = {r['County__State_Code']: r for r in rows}
@@ -251,6 +269,28 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                     # Exact tie — leave in tie bucket (don't move)
                     continue
 
+                # Replace with new_dem/new_rep in 0results.csv
+                with open("0results.csv", 'w', newline='') as outfile:
+                    writer = csv.writer(outfile)
+                    writer.writerow(["County__State_Code", "Winner", "Winner_Pct", "Democrat_Pct", "Republican_Pct"])  # header
+                    for row in rows:
+                        # Loop through every element (cell) in the row
+                        new_row = []
+
+                        new_row.append(row[0]) # state
+                        new_row.append(row[1]) # county
+                        new_row.append(row[2]-0.01*row[2]*shift)
+                        new_row.append(new_dem)
+                        new_row.append(row[4]+0.01*row[2]*shift)
+                        new_row.append(new_rep)
+
+                        for i in range(5,len(row)-1):
+                            new_row.append(i) 
+
+                        new_row.append(new_winner)
+                        
+                        writer.writerow(new_row)
+
                 # Remove county from whichever bucket it's currently in
                 for party_buckets in all_buckets.values():
                     for b in party_buckets:
@@ -269,12 +309,11 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 else:
                     # 100% edge case — put in the top bucket
                     all_buckets[new_winner][6].append(code)
-    
-    # ── Apply region-level shifts ──────────────────────────────────────────────
-    # Runs after state shifts so both can be active simultaneously.
-    # Uses the county lists from specialRegions.py to find which counties belong
-    # to each region, then re-buckets them exactly like the state-shift logic.
-    if region_shifts:
+    elif region_shifts:
+        # ── Apply region-level shifts ──────────────────────────────────────────────
+        # Runs after state shifts with an elif so both cannot be active simultaneously.  Doing so would introduce too many bugs.
+        # Uses the county lists from specialRegions.py to find which counties belong
+        # to each region, then re-buckets them exactly like the state-shift logic.
         import specialRegions as _sr
         import inspect as _inspect
 
@@ -449,6 +488,10 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
 
     progress_queue.put({"type": "done", "data": output})
 
+    
+    
+
+
 # ─── Routes ───────────────────────────────────────────────────────────────────
 """For shifting special regions"""
 @app.route('/')
@@ -466,7 +509,7 @@ def results():
     regions_raw   = request.args.get("regionShifts", "{}")
     switch_colors = request.args.get("switchColors", "false").lower() == "true"
 
-    if not year.isdigit() or not (1788 <= int(year) <= 2100):
+    if not year.isdigit() or (int(year) != 0 and not (1788 <= int(year) <= 2100)):#year = 0 is for user-uploaded results
         return jsonify({"error": "Invalid year"}), 400
 
     try:
@@ -510,7 +553,7 @@ def stream():
     regions_raw   = request.args.get("regionShifts", "{}")
     switch_colors = request.args.get("switchColors", "false").lower() == "true"
 
-    if not year.isdigit() or not (1788 <= int(year) <= 2100):
+    if not year.isdigit() or (int(year) != 0 and not (1788 <= int(year) <= 2100)):
         def err():
             yield "data: " + json.dumps({"type": "error", "message": "Invalid year"}) + "\n\n"
         return Response(err(), mimetype="text/event-stream")
