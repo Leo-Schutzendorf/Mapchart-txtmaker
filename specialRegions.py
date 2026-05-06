@@ -180,6 +180,20 @@ IA_West_Iowa = ["Taylor__IA","Adams__IA","Cass__IA","Adair__IA","Guthrie__IA","G
                 "Dickinson__IA","Osceola__IA","Lyon__IA","Sioux__IA","Plymouth__IA","Woodbury__IA","Monona__IA","Harrison__IA","Pottawattamie__IA","Montgomery__IA","Page__IA",
                 "Fremont__IA","Mills__IA","Shelby__IA","Audubon__IA","Crawford__IA","Ida__IA","Sac__IA","Buena_Vista__IA","Clay__IA","O_Brien__IA","Cherokee__IA"]
 
+"""Kansas"""
+KS_North_Kansas = ["Wallace__KS","Logan__KS","Gove__KS","Trego__KS","Ellis__KS","Russell__KS","Ellsworth__KS","Saline__KS","Dickinson__KS","Geary__KS","Wabaunsee__KS","Morris__KS",
+                   "Ottawa__KS","Mitchell__KS","Phillips__KS","Decatur__KS","Rawlins__KS","Cheyenne__KS","Sherman__KS","Thomas__KS","Sheridan__KS","Graham__KS","Rooks__KS",
+                   "Osborne__KS","Cloud__KS","Lincoln__KS","Norton__KS","Smith__KS","Jewell__KS","Republic__KS","Washington__KS","Marshall__KS","Nemaha__KS","Brown__KS","Doniphan__KS",
+                   "Atchison__KS","Jefferson__KS","Jackson__KS","Shawnee__KS","Pottawatomie__KS","Riley__KS","Clay__KS"]
+
+KS_Southeast_Kansas = ["Miami__KS","Franklin__KS","Osage__KS","Lyon__KS","Chase__KS","Marion__KS","Butler__KS","Sedgwick__KS","Sumner__KS","Harvey__KS","Cowley__KS","Elk__KS",
+                       "Chautauqua__KS","Montgomery__KS","Labette__KS","Cherokee__KS","Crawford__KS","Bourbon__KS","Linn__KS","Anderson__KS","Coffey__KS","Greenwood__KS","Wilson__KS",
+                       "Woodson__KS","Allen__KS","Neosho__KS","McPherson__KS","Harper__KS","Kingman__KS","Reno__KS","Rice__KS"]
+
+KS_Southwest_Kansas = ["Stanton__KS","Morton__KS","Stevens__KS","Grant__KS","Haskell__KS","Seward__KS","Meade__KS","Gray__KS","Ford__KS","Clark__KS","Comanche__KS","Kiowa__KS",
+                       "Edwards__KS","Pratt__KS","Barber__KS","Hamilton__KS","Greeley__KS","Stafford__KS","Kearny__KS","Finney__KS","Hodgeman__KS","Pawnee__KS","Barton__KS","Rush__KS",
+                       "Ness__KS","Lane__KS","Scott__KS","Wichita__KS"]
+
 """Kentucky"""
 KY_East_Kentucky = ["Bell__KY","Harlan__KY","Perry__KY","Breathitt__KY","Wolfe__KY","Menifee__KY","Morgan__KY","Elliott__KY","Carter__KY","Greenup__KY","Boyd__KY","Lawrence__KY",
                     "Johnson__KY","Floyd__KY","Knott__KY","Magoffin__KY","Martin__KY","Pike__KY","Letcher__KY"]
