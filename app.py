@@ -17,16 +17,20 @@ results_cache = {}
 
 
 # ─── CSV-based data loader ────────────────────────────────────────────────────
-# Reads pre-scraped 2024 results from a local CSV instead of hitting Wikipedia.
+# Reads pre-scraped results from a local CSV instead of hitting Wikipedia.
 # The CSV must have these columns:
 #   County__State_Code, Republican_Votes, Republican_Pct,
 #   Democrat_Votes, Democrat_Pct, Other_Votes, Other_Pct, Total_Votes
 #
 # otherAsDem / otherAsRep: when True, all non-D/R votes are folded into that
 # party's total before deciding a county winner.
+#
+# year == "0" is the special user-uploaded data mode.  After applying all
+# shifts the function writes the shifted results back out to 0results.csv so
+# the user can download or re-use them.
 
 def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_shifts=None, region_shifts=None, switchColors=False):
-    """Load 2024 county results from the local CSV and bucket them for MapChart.
+    """Load county results from the local CSV and bucket them for MapChart.
 
     state_shifts: dict mapping state name (e.g. "Alabama") to a signed integer
     shift amount (-100..+100).  Positive = shift toward Republican, negative =
@@ -39,7 +43,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         state_shifts = {}
     if region_shifts is None:
         region_shifts = {}
-    
+
     # Switch party colors; Democrats are now red and Republicans blue
     # (controlled by the switchColors parameter passed in from the request)
 
@@ -64,7 +68,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     tie = []
 
     def bucket_county(path_id, pct, party, dem_pct=None, rep_pct=None):
-        ranges = [(30,40,0),(40,50,1),(50,60,2),(60,70,3),(70,80,4),(80,90,5),(90,101,6)]
+        ranges = [(0,40,0),(40,50,1),(50,60,2),(60,70,3),(70,80,4),(80,90,5),(90,101,6)]
         buckets = {
             'Republican': [Republican_30_40,Republican_40_50,Republican_50_60,Republican_60_70,
                         Republican_70_80,Republican_80_90,Republican_90_100],
@@ -109,28 +113,16 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
             if lo <= int(eff_pct) < hi:
                 buckets[eff_party][idx].append(path_id)
                 return
-                    
+
 
     # ── Load CSV ───────────────────────────────────────────────────────────────
-    CSV_PATH=str(year) + 'results.csv'
+    CSV_PATH = str(year) + 'results.csv'
     try:
-        df = pd.read_csv(CSV_PATH)
+        pd.read_csv(CSV_PATH)  # quick existence/parse check
     except FileNotFoundError:
         progress_queue.put({"type": "error", "message": f"CSV not found: {CSV_PATH}"})
         return
 
-    states = [
-        "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
-        "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho",
-        "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana",
-        "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota",
-        "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
-        "New_Hampshire", "New_Jersey", "New_Mexico", "New_York",
-        "North_Carolina", "North_Dakota", "Ohio", "Oklahoma", "Oregon",
-        "Pennsylvania", "Rhode_Island", "South_Carolina", "South_Dakota",
-        "Tennessee", "Texas", "Utah", "Vermont", "Virginia",
-        "Washington_state", "West_Virginia", "Wisconsin", "Wyoming"
-    ]
     postalCodes = {
         "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR",
         "California": "CA", "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE",
@@ -147,16 +139,16 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         "West_Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY"
     }
 
-    with open(str(year) + 'results.csv', mode='r', encoding="utf-8") as file:
+    with open(CSV_PATH, mode='r', encoding="utf-8") as file:
         reader = csv.DictReader(file)
+        # fieldnames must be captured after DictReader reads the header row.
+        # Accessing reader.fieldnames triggers the header read before list().
+        fieldnames = reader.fieldnames
         rows = list(reader)
-    
 
-
-    '''
-    Reads County__State_Code, Winner, and Winner_Pct columns by name
-    so column order doesn't matter and the header row is skipped automatically.
-    '''
+    # ── Bucket every county from the CSV ──────────────────────────────────────
+    # Reads County__State_Code, Winner, and Winner_Pct columns by name
+    # so column order doesn't matter and the header row is skipped automatically.
     for county in rows:
         bucket_county(
             county['County__State_Code'],
@@ -167,40 +159,43 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         )
 
         """For counties that didn't exist yet, use the county it was part of."""
-        if county['County__State_Code']=="Yuma__AZ" and int(year)<1984:
-            bucket_county("La_Paz__AZ", county['Winner_Pct'], county['Winner'],
-                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
-        if county['County__State_Code']=="Valencia__NM" and int(year)<1984:
-            bucket_county("Cibola__NM", county['Winner_Pct'], county['Winner'],
-                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
-            
-        """Virginia has a lot of these"""
-        if county['County__State_Code']=="Prince_William__VA" and int(year)<1976:
-            bucket_county("Manassas__VA", county['Winner_Pct'], county['Winner'],
-                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
-            bucket_county("Manassas_Park__VA", county['Winner_Pct'], county['Winner'],
-                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
-        if county['County__State_Code']=="York__VA" and int(year)<1976:
-            bucket_county("Poquoson__VA", county['Winner_Pct'], county['Winner'],
-                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
-        if county['County__State_Code']=="Roanoke_Co___VA" and int(year)<1968:
-            bucket_county("Salem__VA", county['Winner_Pct'], county['Winner'],
-                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
-        if county['County__State_Code']=="Rockbridge__VA" and int(year)<1968:
-            bucket_county("Lexington__VA", county['Winner_Pct'], county['Winner'],
-                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
-        if county['County__State_Code']=="Rockbridge__VA" and int(year)<1968:
-            bucket_county("Lexington__VA", county['Winner_Pct'], county['Winner'],
-                          dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+        if str(year) != "0":
+            if county['County__State_Code']=="Yuma__AZ" and int(year)<1984:
+                bucket_county("La_Paz__AZ", county['Winner_Pct'], county['Winner'],
+                              dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+            if county['County__State_Code']=="Valencia__NM" and int(year)<1984:
+                bucket_county("Cibola__NM", county['Winner_Pct'], county['Winner'],
+                              dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+
+            """Virginia has a lot of these"""
+            if county['County__State_Code']=="Prince_William__VA" and int(year)<1976:
+                bucket_county("Manassas__VA", county['Winner_Pct'], county['Winner'],
+                              dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+                bucket_county("Manassas_Park__VA", county['Winner_Pct'], county['Winner'],
+                              dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+            if county['County__State_Code']=="York__VA" and int(year)<1976:
+                bucket_county("Poquoson__VA", county['Winner_Pct'], county['Winner'],
+                              dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+            if county['County__State_Code']=="Roanoke_Co___VA" and int(year)<1968:
+                bucket_county("Salem__VA", county['Winner_Pct'], county['Winner'],
+                              dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+            if county['County__State_Code']=="Rockbridge__VA" and int(year)<1968:
+                bucket_county("Lexington__VA", county['Winner_Pct'], county['Winner'],
+                              dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+
+    # ── Track per-county shifts for CSV output ─────────────────────────────────
+    # This dict is populated by whichever shift block runs below, then used
+    # at the end to write 0results.csv (only when year == "0").
+    county_shifts_applied = {}  # code -> shift amount actually used
 
     # ── Apply state-level shifts ───────────────────────────────────────────────
     # For each shifted state, re-derive winner+pct for every county in that
     # state from the raw Dem/Rep vote percentages, then move the county to the
     # correct new bucket.  The shift is a signed percentage-point offset applied
     # to the two-party split:
-    #   shifted_dem_pct = dem_pct + shift   (negative shift → more dem)
-    #   shifted_rep_pct = rep_pct - shift   (positive shift → more rep)
-    # Both are clamped so neither drops below 0, giving effective 100% caps.
+    #   new_dem = dem_pct - shift   (positive shift → less Dem)
+    #   new_rep = rep_pct + shift   (positive shift → more Rep)
+    # Both are clamped so neither drops below 0 or exceeds 100.
     if state_shifts:
         # Build all bucket lists in order so we can search/remove by value
         all_buckets = {
@@ -219,13 +214,12 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         for state_name, shift in state_shifts.items():
             if shift == 0:
                 continue
-            # Find all counties belonging to this state (prefix = postal code + "__")
+            # Find all counties belonging to this state (suffix = "__" + postal code)
             state_prefix = postalCodes.get(state_name)
             if not state_prefix:
                 continue
 
             for code, row in row_by_code.items():
-                # CSV county codes are "CountyName__ST" (double underscore + postal code)
                 if not code.endswith('__' + state_prefix):
                     continue
 
@@ -235,7 +229,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 except (ValueError, TypeError):
                     continue
 
-                # Apply shift to the raw two-party split first.
+                # Apply shift to the raw two-party split.
                 # shift > 0 → more Republican; shift < 0 → more Democrat.
                 new_dem = max(0.0, dem_pct - shift)
                 new_rep = max(0.0, rep_pct + shift)
@@ -248,14 +242,10 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                     new_dem = 100.0
                     new_rep = 0.0
 
-                # Now apply other-vote redistribution on top of the shifted values.
-                # new_dem + new_rep may not sum to 100 (other votes remain), so
-                # folding others in mirrors exactly what bucket_county does.
+                # Apply other-vote redistribution on top of the shifted values.
                 if otherAsRep:
-                    # All non-Dem votes go to Republican
                     new_rep = 100.0 - new_dem
                 elif otherAsDem:
-                    # All non-Rep votes go to Democrat
                     new_dem = 100.0 - new_rep
 
                 # Determine new winner and winning pct
@@ -269,27 +259,8 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                     # Exact tie — leave in tie bucket (don't move)
                     continue
 
-                # Replace with new_dem/new_rep in 0results.csv
-                with open("0results.csv", 'w', newline='') as outfile:
-                    writer = csv.writer(outfile)
-                    writer.writerow(["County__State_Code", "Winner", "Winner_Pct", "Democrat_Pct", "Republican_Pct"])  # header
-                    for row in rows:
-                        # Loop through every element (cell) in the row
-                        new_row = []
-
-                        new_row.append(row[0]) # state
-                        new_row.append(row[1]) # county
-                        new_row.append(row[2]-0.01*row[2]*shift)
-                        new_row.append(new_dem)
-                        new_row.append(row[4]+0.01*row[2]*shift)
-                        new_row.append(new_rep)
-
-                        for i in range(5,len(row)-1):
-                            new_row.append(i) 
-
-                        new_row.append(new_winner)
-                        
-                        writer.writerow(new_row)
+                # Track the shift for CSV output
+                county_shifts_applied[code] = shift
 
                 # Remove county from whichever bucket it's currently in
                 for party_buckets in all_buckets.values():
@@ -309,11 +280,13 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 else:
                     # 100% edge case — put in the top bucket
                     all_buckets[new_winner][6].append(code)
+
     elif region_shifts:
-        # ── Apply region-level shifts ──────────────────────────────────────────────
-        # Runs after state shifts with an elif so both cannot be active simultaneously.  Doing so would introduce too many bugs.
-        # Uses the county lists from specialRegions.py to find which counties belong
-        # to each region, then re-buckets them exactly like the state-shift logic.
+        # ── Apply region-level shifts ──────────────────────────────────────────
+        # Runs after state shifts with an elif so both cannot be active
+        # simultaneously (combining them would cause difficult-to-track bugs).
+        # Uses the county lists from specialRegions.py to find which counties
+        # belong to each region, then re-buckets them like the state-shift logic.
         import specialRegions as _sr
         import inspect as _inspect
 
@@ -376,6 +349,9 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 else:
                     continue  # tie — leave as-is
 
+                # Track the shift for CSV output
+                county_shifts_applied[code] = shift
+
                 # Remove from current bucket
                 for party_buckets in all_buckets_r.values():
                     for b in party_buckets:
@@ -392,6 +368,50 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 else:
                     all_buckets_r[new_winner][6].append(code)
 
+    # ── Write 0results.csv ─────────────────────
+    # state/region shifts AND otherAsDem/otherAsRep reassignment.
+    # All original columns are preserved; Democrat_Pct, Republican_Pct,
+    # Winner, and Winner_Pct are recalculated for every county.
+    with open("0results.csv", 'w', newline='', encoding='utf-8') as outfile:
+        writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            code    = row['County__State_Code']
+            out_row = dict(row)  # copy all original columns
+
+            try:
+                dem_pct = float(row.get('Democrat_Pct') or 0)
+                rep_pct = float(row.get('Republican_Pct') or 0)
+            except (ValueError, TypeError):
+                writer.writerow(out_row)
+                continue
+
+            # 1. Apply any state/region shift for this county
+            shift   = county_shifts_applied.get(code, 0)
+            new_dem = max(0.0, min(100.0, dem_pct - shift))
+            new_rep = max(0.0, min(100.0, rep_pct + shift))
+
+            # 2. Apply other-vote reassignment on top of the shift
+            if otherAsRep:
+                new_rep = 100.0 - new_dem
+            elif otherAsDem:
+                new_dem = 100.0 - new_rep
+
+            # 3. Derive winner from the final values
+            if new_rep > new_dem:
+                new_winner, new_pct = 'Republican', new_rep
+            elif new_dem > new_rep:
+                new_winner, new_pct = 'Democrat', new_dem
+            else:
+                new_winner = out_row['Winner']
+                new_pct    = float(out_row['Winner_Pct'])
+
+            out_row['Democrat_Pct']   = round(new_dem, 4)
+            out_row['Republican_Pct'] = round(new_rep, 4)
+            out_row['Winner']         = new_winner
+            out_row['Winner_Pct']     = round(new_pct, 4)
+
+            writer.writerow(out_row)
     # ── Build final MapChart JSON output ───────────────────────────────────────
     if switchColors:
         output = {"groups": {
@@ -488,8 +508,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
 
     progress_queue.put({"type": "done", "data": output})
 
-    
-    
+
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
@@ -509,7 +528,7 @@ def results():
     regions_raw   = request.args.get("regionShifts", "{}")
     switch_colors = request.args.get("switchColors", "false").lower() == "true"
 
-    if not year.isdigit() or (int(year) != 0 and not (1788 <= int(year) <= 2100)):#year = 0 is for user-uploaded results
+    if not year.isdigit() or (int(year) != 0 and not (1788 <= int(year) <= 2100)):  # year=0 is user-uploaded data
         return jsonify({"error": "Invalid year"}), 400
 
     try:
@@ -538,7 +557,7 @@ def stream():
     """Server-Sent Events endpoint — streams progress updates then final data.
 
     Query parameters:
-      year        – four-digit election year (required)
+      year        – election year, or 0 for user-uploaded data (required)
       otherMode   – how to handle non-R/D votes:
                       "dem"  → otherAsDem=True
                       "rep"  → otherAsRep=True
