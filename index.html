@@ -125,7 +125,8 @@
   .btn-secondary:hover { color: var(--text); border-color: var(--text); }
 
   /* Download button is hidden until results are ready */
-  button#download-btn { display: none; }
+  button#download-txt-btn { display: none; }
+  button#download-csv-btn { display: none; }
 
   /* ── "Reassign" badge shown in the controls bar when a mode is active ────── */
   #reassign-badge {
@@ -605,7 +606,7 @@
   <!-- Controls bar -->
   <div class="controls">
     <label for="year-input">Election year</label>
-    <input type="number" id="year-input" min="1788" max="2100" step="4" value="1988" placeholder="e.g. 1988">
+    <input type="number" id="year-input" min="0" max="2100" step="4" value="1988" placeholder="e.g. 1988">
 
     <button id="go-btn">Generate</button>
 
@@ -619,6 +620,23 @@
     <button id="customize-btn" class="btn-secondary">Reassign other votes</button>
     <button id="shift-btn" class="btn-secondary">Shift states</button>
     <button id="shift-regions-btn" class="btn-secondary">Shift regions</button>
+    <!-- HTML File Upload -->
+    <label for="file-upload" class="custom-button">
+        Upload CSV
+    </label>
+    <input id="file-upload" type="file" style="display:none;"/>
+
+    <!-- CSS -->
+    <style>
+    .custom-button {
+        border: 1px solid #ccc;
+        display: inline-block;
+        padding: 6px 12px;
+        cursor: pointer;
+        background-color: #f1f1f1;
+        border-radius: 4px;
+    }
+    </style>
 
     <div class="toggle-wrap">
       <span class="toggle-label">Switch colors</span>
@@ -628,7 +646,8 @@
       </label>
     </div>
 
-    <button id="download-btn" class="btn-secondary">Download .txt</button>
+    <button id="download-txt-btn" class="btn-secondary">Download .txt</button>
+    <button id="download-csv-btn" class="btn-secondary">Download .csv</button>
   </div>
 
   <!-- Progress indicator -->
@@ -1183,7 +1202,9 @@
 <script>
   // ── Element references ────────────────────────────────────────────────────
   const goBtn         = document.getElementById('go-btn');
-  const downloadBtn   = document.getElementById('download-btn');
+  const downloadBtn    = document.getElementById('download-txt-btn');  // .txt download
+  const downloadtxtBtn = downloadBtn;
+  const downloadcsvBtn = document.getElementById('download-csv-btn');
   const shiftBtn      = document.getElementById('shift-btn');
   const customizeBtn  = document.getElementById('customize-btn');
   const yearInput     = document.getElementById('year-input');
@@ -1327,8 +1348,9 @@
     warningsArea.style.display = 'none';
     warningsArea.innerHTML     = '';
     errorMsg.style.display     = 'none';
-    downloadBtn.style.display  = 'none';
-    statusIdle.style.display   = 'block';
+    downloadBtn.style.display    = 'none';
+    downloadcsvBtn.style.display = 'none';
+    statusIdle.style.display     = 'block';
     progressFill.style.width   = '0%';
   }
 
@@ -1341,7 +1363,7 @@
   // ── Generate button ───────────────────────────────────────────────────────
   goBtn.addEventListener('click', () => {
     const year = yearInput.value.trim();
-    if (!year || isNaN(year) || +year < 1788 || +year > 2100) {
+    if (!year || isNaN(year) || (+year !== 0 && (+year < 1788 || +year > 2100))) {
       showError('Please enter a valid election year (e.g. 1988).');
       return;
     }
@@ -1365,6 +1387,27 @@
         }
       })
       .catch(() => startStream(year));
+  });
+
+  // ── CSV file upload → save as 0results.csv ───────────────────────────────
+  document.getElementById('file-upload').addEventListener('change', async function () {
+    const file = this.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Uploaded: ${file.name} saved as 0results.csv`);
+      } else {
+        alert(`Upload failed: ${data.error || res.statusText}`);
+      }
+    } catch (err) {
+      alert(`Upload error: ${err.message}`);
+    }
+    // Reset so the same file can be re-uploaded if needed
+    this.value = '';
   });
 
   // ── Switch colors toggle ──────────────────────────────────────────────────
@@ -1451,8 +1494,9 @@
       (fromCache ? ' &nbsp;·&nbsp; loaded from cache' : '');
 
     outputArea.style.display   = 'flex';
-    downloadBtn.style.display  = 'inline-block';
-    statusIdle.style.display   = 'none';
+    downloadBtn.style.display    = 'inline-block';
+    downloadcsvBtn.style.display = 'inline-block';
+    statusIdle.style.display     = 'none';
   }
 
   // ── Download button ───────────────────────────────────────────────────────
@@ -1469,6 +1513,14 @@
     a.download = `election_${yearInput.value}${suffix}${shiftSuffix}${regionShiftSuffix}.txt`;
     a.click();
     URL.revokeObjectURL(a.href);
+  });
+
+  // ── Download CSV button ──────────────────────────────────────────────────
+  downloadcsvBtn.addEventListener('click', () => {
+    const a    = document.createElement('a');
+    a.href     = '/api/download-csv';
+    a.download = 'newresults.csv';
+    a.click();
   });
 
   // Allow Enter key in year input

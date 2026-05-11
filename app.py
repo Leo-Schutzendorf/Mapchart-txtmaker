@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, Response, request
+from flask import Flask, jsonify, render_template, Response, request, send_file
 import json
 import threading
 import queue
@@ -231,30 +231,30 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
 
                 # Apply shift to the raw two-party split.
                 # shift > 0 → more Republican; shift < 0 → more Democrat.
-                new_dem = max(0.0, dem_pct - shift)
-                new_rep = max(0.0, rep_pct + shift)
+                new_dem_pct = max(0.0, dem_pct - shift)
+                new_rep_pct = max(0.0, rep_pct + shift)
 
                 # Clamp so neither exceeds 100
-                if new_rep > 100:
-                    new_rep = 100.0
-                    new_dem = 0.0
-                if new_dem > 100:
-                    new_dem = 100.0
-                    new_rep = 0.0
+                if new_rep_pct > 100:
+                    new_rep_pct = 100.0
+                    new_dem_pct = 0.0
+                if new_dem_pct > 100:
+                    new_dem_pct = 100.0
+                    new_rep_pct = 0.0
 
                 # Apply other-vote redistribution on top of the shifted values.
                 if otherAsRep:
-                    new_rep = 100.0 - new_dem
+                    new_rep_pct = 100.0 - new_dem_pct
                 elif otherAsDem:
-                    new_dem = 100.0 - new_rep
+                    new_dem_pct = 100.0 - new_rep_pct
 
                 # Determine new winner and winning pct
-                if new_rep > new_dem:
+                if new_rep_pct > new_dem_pct:
                     new_winner = 'Republican'
-                    new_pct = new_rep
-                elif new_dem > new_rep:
+                    new_pct = new_rep_pct
+                elif new_dem_pct > new_rep_pct:
                     new_winner = 'Democrat'
-                    new_pct = new_dem
+                    new_pct = new_dem_pct
                 else:
                     # Exact tie — leave in tie bucket (don't move)
                     continue
@@ -329,23 +329,23 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 except (ValueError, TypeError):
                     continue
 
-                new_dem = max(0.0, dem_pct - shift)
-                new_rep = max(0.0, rep_pct + shift)
+                new_dem_pct = max(0.0, dem_pct - shift)
+                new_rep_pct = max(0.0, rep_pct + shift)
 
-                if new_rep > 100:
-                    new_rep = 100.0; new_dem = 0.0
-                if new_dem > 100:
-                    new_dem = 100.0; new_rep = 0.0
+                if new_rep_pct > 100:
+                    new_rep_pct = 100.0; new_dem_pct = 0.0
+                if new_dem_pct > 100:
+                    new_dem_pct = 100.0; new_rep_pct = 0.0
 
                 if otherAsRep:
-                    new_rep = 100.0 - new_dem
+                    new_rep_pct = 100.0 - new_dem_pct
                 elif otherAsDem:
-                    new_dem = 100.0 - new_rep
+                    new_dem_pct = 100.0 - new_rep_pct
 
-                if new_rep > new_dem:
-                    new_winner, new_pct = 'Republican', new_rep
-                elif new_dem > new_rep:
-                    new_winner, new_pct = 'Democrat', new_dem
+                if new_rep_pct > new_dem_pct:
+                    new_winner, new_pct = 'Republican', new_rep_pct
+                elif new_dem_pct > new_rep_pct:
+                    new_winner, new_pct = 'Democrat', new_dem_pct
                 else:
                     continue  # tie — leave as-is
 
@@ -368,17 +368,18 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 else:
                     all_buckets_r[new_winner][6].append(code)
 
-    # ── Write 0results.csv ─────────────────────
-    # state/region shifts AND otherAsDem/otherAsRep reassignment.
+    # ── Write newresults.csv ──────────
     # All original columns are preserved; Democrat_Pct, Republican_Pct,
-    # Winner, and Winner_Pct are recalculated for every county.
-    with open("0results.csv", 'w', newline='', encoding='utf-8') as outfile:
+    # Winner, and Winner_Pct are recalculated to reflect any applied
+    # state/region shifts AND otherAsDem/otherAsRep reassignment.
+    # Must create this csv every time
+    with open("newresults.csv", 'w', newline='', encoding='utf-8') as outfile:
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows:
             code    = row['County__State_Code']
             out_row = dict(row)  # copy all original columns
-
+            total_votes = int(row["Total_Votes"])
             try:
                 dem_pct = float(row.get('Democrat_Pct') or 0)
                 rep_pct = float(row.get('Republican_Pct') or 0)
@@ -388,26 +389,42 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
 
             # 1. Apply any state/region shift for this county
             shift   = county_shifts_applied.get(code, 0)
-            new_dem = max(0.0, min(100.0, dem_pct - shift))
-            new_rep = max(0.0, min(100.0, rep_pct + shift))
+            new_dem_pct = max(0.0, min(100.0, dem_pct - shift))
+            new_rep_pct = max(0.0, min(100.0, rep_pct + shift))
+
+            new_dem = max(0.0, min(total_votes, int(0.01*new_dem_pct*total_votes)))
+            new_rep = max(0.0, min(total_votes, int(0.01*new_rep_pct*total_votes)))
 
             # 2. Apply other-vote reassignment on top of the shift
-            if otherAsRep:
-                new_rep = 100.0 - new_dem
-            elif otherAsDem:
-                new_dem = 100.0 - new_rep
+            if otherAsRep or otherAsDem:
+                try:
+                    other_pct = float(row.get('Other_Pct') or 0)
+                except (ValueError, TypeError):
+                    other_pct = 0.0
+
+                # new_party_pct = max(0,100-new_otherParty_pct)
+                if otherAsRep:
+                    new_rep_pct = max(0,100-new_dem_pct)
+                elif otherAsDem:
+                    new_dem_pct = min(100.0, new_dem_pct + other_pct)
+
+                # Zero out other columns in the output row (only if present in CSV)
+                if 'Other_Pct' in fieldnames:
+                    out_row['Other_Pct'] = 0.0
+                if 'Other_Votes' in fieldnames:
+                    out_row['Other_Votes'] = 0
 
             # 3. Derive winner from the final values
-            if new_rep > new_dem:
-                new_winner, new_pct = 'Republican', new_rep
-            elif new_dem > new_rep:
-                new_winner, new_pct = 'Democrat', new_dem
+            if new_rep_pct > new_dem_pct:
+                new_winner, new_pct = 'Republican', new_rep_pct
+            elif new_dem_pct > new_rep_pct:
+                new_winner, new_pct = 'Democrat', new_dem_pct
             else:
                 new_winner = out_row['Winner']
                 new_pct    = float(out_row['Winner_Pct'])
 
-            out_row['Democrat_Pct']   = round(new_dem, 4)
-            out_row['Republican_Pct'] = round(new_rep, 4)
+            out_row['Democrat_Pct']   = round(new_dem_pct, 4)
+            out_row['Republican_Pct'] = round(new_rep_pct, 4)
             out_row['Winner']         = new_winner
             out_row['Winner_Pct']     = round(new_pct, 4)
 
@@ -513,6 +530,34 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
 """For shifting special regions"""
+
+@app.route('/api/upload', methods=['POST'])
+def upload_csv():
+    """Accept a CSV file upload and save it as 0results.csv for use with year=0."""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in request"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    if not file.filename.lower().endswith('.csv'):
+        return jsonify({"error": "Only CSV files are accepted"}), 400
+    file.save('0results.csv')
+    return jsonify({"status": "ok", "message": "Saved as 0results.csv"})
+
+
+@app.route('/api/download-csv')
+def download_csv():
+    """Serve newresults.csv as a file download."""
+    import os
+    if not os.path.exists('newresults.csv'):
+        return jsonify({"error": "No results CSV available yet. Generate an election first."}), 404
+    return send_file(
+        'newresults.csv',
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='newresults.csv'
+    )
+
 @app.route('/')
 def index():
     regions = [name for name in dir(specialRegions) if not name.startswith('_')]
