@@ -182,6 +182,9 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
             if county['County__State_Code']=="Rockbridge__VA" and int(year)<1968:
                 bucket_county("Lexington__VA", county['Winner_Pct'], county['Winner'],
                               dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+            if county['County__State_Code']=="Rockbridge__VA" and int(year)<1964:
+                bucket_county("Chesapeake__VA", county['Winner_Pct'], county['Winner'],
+                              dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
 
     # ── Track per-county shifts for CSV output ─────────────────────────────────
     # This dict is populated by whichever shift block runs below, then used
