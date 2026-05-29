@@ -55,7 +55,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     Republican_70_80 = []; Democrat_70_80 = []
     Republican_80_90 = []; Democrat_80_90 = []
     Republican_90_100 = []; Democrat_90_100 = []
-
+    
     Perot_30_40 = []; Perot_40_50 = []; Perot_50_60 = []
     Perot_60_70 = []; Perot_70_80 = []; Perot_80_90 = []; Perot_90_100 = []
     Wallace_30_40 = []; Wallace_40_50 = []; Wallace_50_60 = []
@@ -163,6 +163,11 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
             if county['County__State_Code']=="Yuma__AZ" and int(year)<1984:
                 bucket_county("La_Paz__AZ", county['Winner_Pct'], county['Winner'],
                               dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+                
+            if county['County__State_Code']=="Maui__HI" and int(year)<1992:
+                bucket_county("Kalawao__HI", county['Winner_Pct'], county['Winner'],
+                              dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
+                
             if county['County__State_Code']=="Valencia__NM" and int(year)<1984:
                 bucket_county("Cibola__NM", county['Winner_Pct'], county['Winner'],
                               dem_pct=county.get('Democrat_Pct'), rep_pct=county.get('Republican_Pct'))
@@ -382,10 +387,10 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         for row in rows:
             code    = row['County__State_Code']
             out_row = dict(row)  # copy all original columns
-            total_votes = int(row["Total_Votes"])
             try:
                 dem_pct = float(row.get('Democrat_Pct') or 0)
                 rep_pct = float(row.get('Republican_Pct') or 0)
+                total_votes = int(row.get("Total_Votes") or 0)
             except (ValueError, TypeError):
                 writer.writerow(out_row)
                 continue
@@ -412,10 +417,15 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                     new_dem_pct = min(100.0, new_dem_pct + other_pct)
 
                 # Zero out other columns in the output row (only if present in CSV)
-                if 'Other_Pct' in fieldnames:
-                    out_row['Other_Pct'] = 0.0
-                if 'Other_Votes' in fieldnames:
-                    out_row['Other_Votes'] = 0
+                if otherAsDem or otherAsRep:
+                    keep = {'County__State_Code', 'Total_Votes', 'Winner', 'Winner_Pct',
+                            'Democrat_Votes', 'Democrat_Pct', 'Republican_Votes', 'Republican_Pct'}
+                    for field in fieldnames:
+                        if field not in keep:
+                            if 'Votes' in field:
+                                out_row[field] = 0
+                            elif 'Pct' in field:
+                                out_row[field] = 0.0
 
             # 3. Derive winner from the final values
             if new_rep_pct > new_dem_pct:

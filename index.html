@@ -1520,7 +1520,9 @@
     const a    = document.createElement('a');
     a.href     = '/api/download-csv';
     a.download = 'newresults.csv';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
   });
 
   // Allow Enter key in year input
