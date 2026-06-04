@@ -648,6 +648,7 @@
 
     <button id="download-txt-btn" class="btn-secondary">Download .txt</button>
     <button id="download-csv-btn" class="btn-secondary">Download .csv</button>
+    <button id="download-state-json-btn" class="btn-secondary" style="display:none">Download StateLevel.json</button>
   </div>
 
   <!-- Progress indicator -->
@@ -1205,6 +1206,7 @@
   const downloadBtn    = document.getElementById('download-txt-btn');  // .txt download
   const downloadtxtBtn = downloadBtn;
   const downloadcsvBtn = document.getElementById('download-csv-btn');
+  const downloadStateJsonBtn = document.getElementById('download-state-json-btn');
   const shiftBtn      = document.getElementById('shift-btn');
   const customizeBtn  = document.getElementById('customize-btn');
   const yearInput     = document.getElementById('year-input');
@@ -1350,6 +1352,7 @@
     errorMsg.style.display     = 'none';
     downloadBtn.style.display    = 'none';
     downloadcsvBtn.style.display = 'none';
+    downloadStateJsonBtn.style.display = 'none';
     statusIdle.style.display     = 'block';
     progressFill.style.width   = '0%';
   }
@@ -1496,6 +1499,7 @@
     outputArea.style.display   = 'flex';
     downloadBtn.style.display    = 'inline-block';
     downloadcsvBtn.style.display = 'inline-block';
+    downloadStateJsonBtn.style.display = 'inline-block';
     statusIdle.style.display     = 'none';
   }
 
@@ -1520,6 +1524,16 @@
     const a    = document.createElement('a');
     a.href     = '/api/download-csv';
     a.download = 'newresults.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  });
+
+  // ── Download StateLevel.json button ──────────────────────────────────────
+  downloadStateJsonBtn.addEventListener('click', () => {
+    const a    = document.createElement('a');
+    a.href     = '/api/download-state-json';
+    a.download = 'StateLevel.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

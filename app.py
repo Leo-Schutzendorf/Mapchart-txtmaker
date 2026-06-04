@@ -4,9 +4,15 @@ import threading
 import queue
 import time
 import csv
+import os
 import math
 app = Flask(__name__)
 import specialRegions
+
+# ─── Paths ────────────────────────────────────────────────────────────────────
+# All CSV / JSON files live next to this script, regardless of which directory
+# Python is invoked from.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 # ─── Cache ────────────────────────────────────────────────────────────────────
@@ -116,7 +122,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
 
 
     # ── Load CSV ───────────────────────────────────────────────────────────────
-    CSV_PATH = str(year) + 'results.csv'
+    CSV_PATH = os.path.join(BASE_DIR, str(year) + 'results.csv')
     try:
         pd.read_csv(CSV_PATH)  # quick existence/parse check
     except FileNotFoundError:
@@ -381,7 +387,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     # Winner, and Winner_Pct are recalculated to reflect any applied
     # state/region shifts AND otherAsDem/otherAsRep reassignment.
     # Must create this csv every time
-    with open("newresults.csv", 'w', newline='', encoding='utf-8') as outfile:
+    with open(os.path.join(BASE_DIR, "newresults.csv"), 'w', newline='', encoding='utf-8') as outfile:
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows:
@@ -442,6 +448,271 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
             out_row['Winner_Pct']     = round(new_pct, 4)
 
             writer.writerow(out_row)
+    # ── Write StateLevel.json ─────────────────────────────────────────────────
+    # Aggregates county-level results up to the state level and writes a
+    # YAPms-format JSON file that can be loaded into yapms.com.
+    #
+    # The winner of each state is whichever party accumulated the most raw votes
+    # across all its counties (after any shifts/reassignments are applied).
+    # Third-party candidates (Other, Wallace, Perot, Unpledged) are fully
+    # supported: if a third party wins the state vote total it appears as the
+    # winner, and a matching candidate entry is added to the candidates array.
+    #
+    # Margin tier is based on the winner's share of the *total* state vote
+    # (not just the two-party split) so it reflects genuine dominance:
+    #   0 = Safe      (winner ≥ 60 % of total)
+    #   1 = Likely    (55–60 %)
+    #   2 = Lean      (52–55 %)
+    #   3 = Toss-up   (< 52 %, or any state won by a third party)
+
+    import uuid as _uuid
+
+    # ── Electoral-vote counts by YAPms region id (2024 apportionment) ─────────
+    # Maine and Nebraska expose their congressional-district EVs as separate
+    # region ids alongside the at-large statewide ids (me-al / ne-al).
+    EV_BY_REGION = {
+        "al": 9,  "ak": 3,  "az": 11, "ar": 6,  "ca": 54, "co": 10,
+        "ct": 7,  "de": 3,  "dc": 3,  "fl": 30, "ga": 16, "hi": 4,
+        "id": 4,  "il": 19, "in": 11, "ia": 6,  "ks": 6,  "ky": 8,
+        "la": 8,  "me-al": 2, "me-01": 1, "me-02": 1,
+        "md": 10, "ma": 11, "mi": 15, "mn": 10, "ms": 6,  "mo": 10,
+        "mt": 4,  "ne-al": 2, "ne-01": 1, "ne-02": 1, "ne-03": 1,
+        "nv": 6,  "nh": 4,  "nj": 14, "nm": 5,  "ny": 28, "nc": 16,
+        "nd": 3,  "oh": 17, "ok": 7,  "or": 8,  "pa": 19, "ri": 4,
+        "sc": 9,  "sd": 3,  "tn": 11, "tx": 40, "ut": 6,  "vt": 3,
+        "va": 13, "wa": 12, "wv": 4,  "wi": 10, "wy": 3,
+    }
+
+    # ── Postal code → YAPms region id(s) ──────────────────────────────────────
+    # Most states map 1-to-1.  ME and NE are split into at-large + CD ids;
+    # since county data doesn't break down by CD, all of the state's counties
+    # are aggregated together and the same winner is applied to every id.
+    POSTAL_TO_REGIONS = {
+        "AL": ["al"], "AK": ["ak"], "AZ": ["az"], "AR": ["ar"], "CA": ["ca"],
+        "CO": ["co"], "CT": ["ct"], "DE": ["de"], "DC": ["dc"], "FL": ["fl"],
+        "GA": ["ga"], "HI": ["hi"], "ID": ["id"], "IL": ["il"], "IN": ["in"],
+        "IA": ["ia"], "KS": ["ks"], "KY": ["ky"], "LA": ["la"],
+        "ME": ["me-al", "me-01", "me-02"],
+        "MD": ["md"], "MA": ["ma"], "MI": ["mi"], "MN": ["mn"], "MS": ["ms"],
+        "MO": ["mo"], "MT": ["mt"],
+        "NE": ["ne-al", "ne-01", "ne-02", "ne-03"],
+        "NV": ["nv"], "NH": ["nh"], "NJ": ["nj"], "NM": ["nm"], "NY": ["ny"],
+        "NC": ["nc"], "ND": ["nd"], "OH": ["oh"], "OK": ["ok"], "OR": ["or"],
+        "PA": ["pa"], "RI": ["ri"], "SC": ["sc"], "SD": ["sd"], "TN": ["tn"],
+        "TX": ["tx"], "UT": ["ut"], "VT": ["vt"], "VA": ["va"], "WA": ["wa"],
+        "WV": ["wv"], "WI": ["wi"], "WY": ["wy"],
+    }
+
+    # ── Third-party display metadata ───────────────────────────────────────────
+    # Maps the CSV Winner value to the human-readable name and four YAPms margin
+    # colors (safe → toss-up, darkest → lightest).  Each entry also gets a
+    # stable UUID generated once below so every state they win shares one id.
+    THIRD_PARTY_META = {
+        # George Wallace's American Independent Party (1968)
+        "Wallace":   {"name": "Wallace",   "colors": ["#5c1a7a", "#732d94", "#8e4daa", "#a875c0"]},
+        # Ross Perot's Reform Party runs (1992, 1996)
+        "Perot":     {"name": "Perot",     "colors": ["#246624", "#2b8c2b", "#30a630", "#73d873"]},
+        # Southern unpledged electors (1960, etc.)
+        "Unpledged": {"name": "Unpledged", "colors": ["#806000", "#b38600", "#cc9900", "#e6b800"]},
+        # All other third-party/independent candidates
+        "Other":     {"name": "Other",     "colors": ["#cc5200", "#e65c00", "#ff6600", "#ff994d"]},
+    }
+
+    # ── Margin tier helper ─────────────────────────────────────────────────────
+    # Uses the winner's share of the *total* vote (all parties) so that a narrow
+    # plurality over a large third-party field is correctly shown as competitive.
+    # Third-party winners always get tier 3 (toss-up) because a plurality win
+    # in a multi-way race doesn't represent dominance in the same way.
+    def _margin_tier(win_pct, is_third_party=False):
+        # Use the same thresholds for all parties — third-party wins can be
+        # landslides too (e.g. Wallace took some Southern states by wide margins).
+        if win_pct >= 60: return 0  # Safe
+        if win_pct >= 55: return 1  # Likely
+        if win_pct >= 52: return 2  # Lean
+        return 3                    # Toss-up
+
+    # ── Accumulate vote totals per postal code ─────────────────────────────────
+    # We track every party separately so that a third party that out-polls both
+    # major parties in a state is correctly identified as the winner.
+    # Keys: postal code string (e.g. "AL").
+    # Values: dict of party_name -> total votes (float, derived from pct * total).
+    state_votes = {}  # { postal: { party: float } }
+
+    for row in rows:
+        code = row.get('County__State_Code', '')
+        parts = code.rsplit('__', 1)
+        if len(parts) != 2:
+            continue
+        postal = parts[1]
+
+        try:
+            shift   = county_shifts_applied.get(code, 0)
+            d_pct   = max(0.0, min(100.0, float(row.get('Democrat_Pct')   or 0) - shift))
+            r_pct   = max(0.0, min(100.0, float(row.get('Republican_Pct') or 0) + shift))
+            o_pct   = max(0.0, float(row.get('Other_Pct')     or 0))
+            w_pct   = max(0.0, float(row.get('Wallace_Pct')   or 0))
+            p_pct   = max(0.0, float(row.get('Perot_Pct')     or 0))
+            u_pct   = max(0.0, float(row.get('Unpledged_Pct') or 0))
+            total   = int(row.get('Total_Votes') or 0)
+        except (ValueError, TypeError):
+            continue
+
+        # Apply other-vote redistribution if active.
+        # When redistribution is on, all third-party percentages collapse to 0
+        # because those votes have been folded into one of the major parties.
+        if otherAsRep:
+            r_pct = 100.0 - d_pct
+            o_pct = w_pct = p_pct = u_pct = 0.0
+        elif otherAsDem:
+            d_pct = 100.0 - r_pct
+            o_pct = w_pct = p_pct = u_pct = 0.0
+
+        # Add this county's votes to the running state totals.
+        party_tally = state_votes.setdefault(postal, {})
+        party_tally['Democrat']   = party_tally.get('Democrat',   0) + d_pct * total / 100.0
+        party_tally['Republican'] = party_tally.get('Republican', 0) + r_pct * total / 100.0
+        party_tally['Other']      = party_tally.get('Other',      0) + o_pct * total / 100.0
+        party_tally['Wallace']    = party_tally.get('Wallace',     0) + w_pct * total / 100.0
+        party_tally['Perot']      = party_tally.get('Perot',       0) + p_pct * total / 100.0
+        party_tally['Unpledged']  = party_tally.get('Unpledged',   0) + u_pct * total / 100.0
+
+    # ── Assign stable UUIDs to any third parties that actually win a state ─────
+    # We generate UUIDs efficiently: only parties that end up winning at least one
+    # state get an entry, so irrelevant third parties don't clutter the JSON.
+    # The UUIDs are deterministic within a run (generated once here, reused for
+    # every state that party wins) but differ between runs — that's fine because
+    # YAPms treats them as opaque identifiers.
+    third_party_ids = {}  # party_name -> uuid string (populated on first win)
+
+    # ── Build the states list ─────────────────────────────────────────────────
+    state_regions     = []
+    seen_region_ids   = set()
+
+    for postal, region_ids in POSTAL_TO_REGIONS.items():
+        tally     = state_votes.get(postal, {})
+        total_v   = sum(tally.values())
+
+        # Find the party with the most votes in this state.
+        if total_v == 0:
+            # No data for this state — fall back to Democrat (won't affect real maps).
+            winner_party = 'Democrat'
+            win_pct      = 50.0
+        else:
+            winner_party = max(tally, key=tally.get)
+            win_pct      = tally[winner_party] / total_v * 100.0
+
+        # Map the winning party name to its YAPms candidate id.
+        is_third_party = winner_party not in ('Democrat', 'Republican')
+
+        if winner_party == 'Democrat':
+            winner_cand_id = "0"
+        elif winner_party == 'Republican':
+            winner_cand_id = "1"
+        else:
+            # Third-party winner: assign a UUID the first time we see this party win,
+            # then reuse the same UUID for every subsequent state it wins.
+            if winner_party not in third_party_ids:
+                third_party_ids[winner_party] = str(_uuid.uuid4())
+            winner_cand_id = third_party_ids[winner_party]
+
+        tier = _margin_tier(win_pct, is_third_party=is_third_party)
+
+        # Emit one region entry per YAPms id that maps to this postal code.
+        for rid in region_ids:
+            if rid in seen_region_ids:
+                continue
+            seen_region_ids.add(rid)
+            ev = EV_BY_REGION.get(rid, 0)
+            state_regions.append({
+                "id":          rid,
+                "value":       ev,
+                "permaVal":    ev,
+                "locked":      False,
+                "permaLocked": False,
+                "disabled":    False,
+                # YAPms expects a single-element list here; count = EVs awarded.
+                "candidates":  [{"id": winner_cand_id, "count": ev, "margin": tier}],
+            })
+
+    # Sort regions alphabetically by id for a tidy, diff-friendly file.
+    state_regions.sort(key=lambda r: r["id"])
+
+    # ── Build the candidates array ─────────────────────────────────────────────
+    # Always include Democrat (id "0") and Republican (id "1").
+    # Append a third-party entry for every party that actually won a state,
+    # in the order they were first encountered above.
+    yapms_candidates = [
+        {
+            "id":           "0",
+            "name":         "Democrat" if not switchColors else "Republican",
+            "defaultCount": 0,
+            "margins": [
+                {"color": "#1C408C"},  # Safe
+                {"color": "#577CCC"},  # Likely
+                {"color": "#8AAFFF"},  # Lean
+                {"color": "#949BB3"},  # Toss-up
+            ],
+        },
+        {
+            "id":           "1",
+            "name":         "Republican" if not switchColors else "Democrat",
+            "defaultCount": 0,
+            "margins": [
+                {"color": "#BF1D29"},  # Safe
+                {"color": "#FF5865"},  # Likely
+                {"color": "#FF8B98"},  # Lean
+                {"color": "#CF8980"},  # Toss-up
+            ],
+        },
+    ]
+
+    for party_name, cand_uuid in third_party_ids.items():
+        meta = THIRD_PARTY_META.get(party_name, {
+            # Fallback for any unexpected party name: neutral grey-green palette.
+            "name":   party_name,
+            "colors": ["#2e6b2e", "#3d8f3d", "#57b357", "#7fcc7f"],
+        })
+        yapms_candidates.append({
+            "id":           cand_uuid,
+            "name":         meta["name"],
+            "defaultCount": 0,
+            "margins": [{"color": c} for c in meta["colors"]],
+        })
+
+    # Determine YAPms year / variant strings
+    # YAPms uses special map IDs for elections it has built-in SVGs for.
+    # Years before 2024 use "results" variant (actual map); 2024 uses a specific
+    # internal id; future/custom years use "blank" (unlabelled outline map).
+    yapmsyear = str(year)
+    if int(year) < 2024 and int(year) != 0:
+        variant = "results"
+    elif int(year) == 2024:
+        yapmsyear = "2024310"
+        variant   = "results"
+    else:  # year == 0 (user-uploaded) or any future year
+        variant = "blank"
+
+    # ── Assemble and write the final YAPms JSON ────────────────────────────────
+    yapms_state = {
+        "map": {
+            "country": "usa",
+            "type":    "presidential",
+            "year":    yapmsyear,
+            "variant": variant,
+        },
+        "tossup": {
+            "id":           "",
+            "name":         "Tossup",
+            "defaultCount": 0,
+            "margins":      [{"color": "#cccccc"}],
+        },
+        "candidates": yapms_candidates,
+        "regions":    state_regions,
+    }
+
+    with open(os.path.join(BASE_DIR, "StateLevel.json"), "w", encoding="utf-8") as f:
+        json.dump(yapms_state, f, indent=2)
+
     # ── Build final MapChart JSON output ───────────────────────────────────────
     if switchColors:
         output = {"groups": {
@@ -554,7 +825,7 @@ def upload_csv():
         return jsonify({"error": "No file selected"}), 400
     if not file.filename.lower().endswith('.csv'):
         return jsonify({"error": "Only CSV files are accepted"}), 400
-    file.save('0results.csv')
+    file.save(os.path.join(BASE_DIR, '0results.csv'))
     return jsonify({"status": "ok", "message": "Saved as 0results.csv"})
 
 
@@ -562,14 +833,27 @@ def upload_csv():
 def download_csv():
     """Serve newresults.csv as a file download."""
     import os
-    if not os.path.exists('newresults.csv'):
+    if not os.path.exists(os.path.join(BASE_DIR, 'newresults.csv')):
         return jsonify({"error": "No results CSV available yet. Generate an election first."}), 404
     return send_file(
-        'newresults.csv',
+        os.path.join(BASE_DIR, 'newresults.csv'),
         mimetype='text/csv',
         as_attachment=True,
         download_name='newresults.csv'
     )
+
+@app.route('/api/download-state-json')
+def download_state_json():
+    """Serve StateLevel.json as a file download."""
+    if not os.path.exists(os.path.join(BASE_DIR, 'StateLevel.json')):
+        return jsonify({"error": "No StateLevel.json available yet. Generate an election first."}), 404
+    return send_file(
+        os.path.join(BASE_DIR, 'StateLevel.json'),
+        mimetype='application/json',
+        as_attachment=True,
+        download_name='StateLevel.json'
+    )
+
 
 @app.route('/')
 def index():
@@ -685,3 +969,8 @@ def stream():
 
 if __name__ == "__main__":
     app.run(debug=True)
+    try: # deletes 0results.csv
+        os.remove("C:/Users/leoth/Mapchart-txtmaker/0results.csv")
+        print("File deleted successfully.")
+    except FileNotFoundError:
+        pass
