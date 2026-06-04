@@ -467,21 +467,241 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
 
     import uuid as _uuid
 
-    # ── Electoral-vote counts by YAPms region id (2024 apportionment) ─────────
-    # Maine and Nebraska expose their congressional-district EVs as separate
-    # region ids alongside the at-large statewide ids (me-al / ne-al).
-    EV_BY_REGION = {
-        "al": 9,  "ak": 3,  "az": 11, "ar": 6,  "ca": 54, "co": 10,
-        "ct": 7,  "de": 3,  "dc": 3,  "fl": 30, "ga": 16, "hi": 4,
-        "id": 4,  "il": 19, "in": 11, "ia": 6,  "ks": 6,  "ky": 8,
-        "la": 8,  "me-al": 2, "me-01": 1, "me-02": 1,
-        "md": 10, "ma": 11, "mi": 15, "mn": 10, "ms": 6,  "mo": 10,
-        "mt": 4,  "ne-al": 2, "ne-01": 1, "ne-02": 1, "ne-03": 1,
-        "nv": 6,  "nh": 4,  "nj": 14, "nm": 5,  "ny": 28, "nc": 16,
-        "nd": 3,  "oh": 17, "ok": 7,  "or": 8,  "pa": 19, "ri": 4,
-        "sc": 9,  "sd": 3,  "tn": 11, "tx": 40, "ut": 6,  "vt": 3,
-        "va": 13, "wa": 12, "wv": 4,  "wi": 10, "wy": 3,
+    # ── Electoral-vote counts by year and YAPms region id ─────────────────────
+    # Each sub-dict must exactly match what YAPms stores internally for that
+    # year's "results" map — if value/count don't match the built-in permaVal,
+    # YAPms treats the difference as unassigned and creates ghost electors.
+    # ME/NE district splits (me-01, me-02, ne-01…ne-03) only exist from 1972+;
+    # DC (dc) only from 1964+.  Earlier years omit those keys entirely.
+    # Source: official NARA/FEC apportionment records.
+    EV_BY_YEAR = {
+        1948: {
+            "al":11,"az":4, "ar":9, "ca":25,"co":6, "ct":8, "de":3,
+            "fl":8, "ga":12,"id":4, "il":28,"in":13,"ia":10,"ks":8,
+            "ky":11,"la":10,"me-al":5,"md":8, "ma":16,"mi":19,"mn":11,
+            "ms":9, "mo":15,"mt":4, "nv":3, "nh":4, "nj":16,"nm":4,
+            "ny":47,"nc":14,"nd":4, "oh":25,"ok":10,"or":6, "pa":35,
+            "ri":4, "sc":8, "sd":4, "tn":12,"tx":23,"ut":4, "vt":3,
+            "va":11,"wa":8, "wv":8, "wi":12,"wy":3,
+        },
+        1952: {
+            "al":11,"ak":0, "az":4, "ar":8, "ca":32,"co":6, "ct":8,
+            "de":3, "fl":10,"ga":12,"hi":0, "id":4, "il":27,"in":13,
+            "ia":10,"ks":8, "ky":10,"la":10,"me-al":5,"md":9, "ma":16,
+            "mi":20,"mn":11,"ms":8, "mo":13,"mt":4, "nv":3, "nh":4,
+            "nj":16,"nm":4, "ny":45,"nc":14,"nd":4, "oh":25,"ok":8,
+            "or":6, "pa":32,"ri":4, "sc":8, "sd":4, "tn":11,"tx":24,
+            "ut":4, "vt":3, "va":12,"wa":9, "wv":8, "wi":12,"wy":3,
+        },
+        1956: {
+            "al":11,"ak":0, "az":4, "ar":8, "ca":32,"co":6, "ct":8,
+            "de":3, "fl":10,"ga":12,"hi":0, "id":4, "il":27,"in":13,
+            "ia":10,"ks":8, "ky":10,"la":10,"me-al":5,"md":9, "ma":16,
+            "mi":20,"mn":11,"ms":8, "mo":13,"mt":4, "nv":3, "nh":4,
+            "nj":16,"nm":4, "ny":45,"nc":14,"nd":4, "oh":25,"ok":8,
+            "or":6, "pa":32,"ri":4, "sc":8, "sd":4, "tn":11,"tx":24,
+            "ut":4, "vt":3, "va":12,"wa":9, "wv":8, "wi":12,"wy":3,
+        },
+        1960: {
+            "al":11,"ak":3, "az":4, "ar":8, "ca":32,"co":6, "ct":8,
+            "de":3, "fl":10,"ga":12,"hi":3, "id":4, "il":27,"in":13,
+            "ia":10,"ks":8, "ky":10,"la":10,"me-al":5,"md":9, "ma":16,
+            "mi":20,"mn":11,"ms":8, "mo":13,"mt":4, "nv":3, "nh":4,
+            "nj":16,"nm":4, "ny":45,"nc":14,"nd":4, "oh":25,"ok":8,
+            "or":6, "pa":32,"ri":4, "sc":8, "sd":4, "tn":11,"tx":24,
+            "ut":4, "vt":3, "va":12,"wa":9, "wv":8, "wi":12,"wy":3,
+        },
+        1964: {
+            "al":10,"ak":3, "az":5, "ar":6, "ca":40,"co":6, "ct":8,
+            "dc":3, "de":3, "fl":14,"ga":12,"hi":4, "id":4, "il":26,
+            "in":13,"ia":9, "ks":7, "ky":9, "la":10,"me-al":4,"md":10,
+            "ma":14,"mi":21,"mn":10,"ms":7, "mo":12,"mt":4, "nv":3,
+            "nh":4, "nj":17,"nm":4, "ny":43,"nc":13,"nd":4, "oh":26,
+            "ok":8, "or":6, "pa":29,"ri":4, "sc":8, "sd":4, "tn":11,
+            "tx":25,"ut":4, "vt":3, "va":12,"wa":9, "wv":7, "wi":12,
+            "wy":3,
+        },
+        1968: {
+            "al":10,"ak":3, "az":5, "ar":6, "ca":40,"co":6, "ct":8,
+            "dc":3, "de":3, "fl":14,"ga":12,"hi":4, "id":4, "il":26,
+            "in":13,"ia":9, "ks":7, "ky":9, "la":10,"me-al":4,"md":10,
+            "ma":14,"mi":21,"mn":10,"ms":7, "mo":12,"mt":4, "nv":3,
+            "nh":4, "nj":17,"nm":4, "ny":43,"nc":13,"nd":4, "oh":26,
+            "ok":8, "or":6, "pa":29,"ri":4, "sc":8, "sd":4, "tn":11,
+            "tx":25,"ut":4, "vt":3, "va":12,"wa":9, "wv":7, "wi":12,
+            "wy":3,
+        },
+        1972: {
+            "al":9, "ak":3, "az":6, "ar":6, "ca":45,"co":7, "ct":8,
+            "dc":3, "de":3, "fl":17,"ga":12,"hi":4, "id":4, "il":26,
+            "in":13,"ia":8, "ks":7, "ky":9, "la":10,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":14,"mi":21,"mn":10,"ms":7, "mo":12,"mt":4,
+            "nv":3, "nh":4, "nj":17,"nm":4, "ny":41,"nc":13,"nd":3,
+            "oh":25,"ok":8, "or":6, "pa":27,"ri":4, "sc":8, "sd":4,
+            "tn":10,"tx":26,"ut":4, "vt":3, "va":11,"wa":9, "wv":6,
+            "wi":11,"wy":3,
+        },
+        1976: {
+            "al":9, "ak":3, "az":6, "ar":6, "ca":45,"co":7, "ct":8,
+            "dc":3, "de":3, "fl":17,"ga":12,"hi":4, "id":4, "il":26,
+            "in":13,"ia":8, "ks":7, "ky":9, "la":10,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":14,"mi":21,"mn":10,"ms":7, "mo":12,"mt":4,
+            "nv":3, "nh":4, "nj":17,"nm":4, "ny":41,"nc":13,"nd":3,
+            "oh":25,"ok":8, "or":6, "pa":27,"ri":4, "sc":8, "sd":4,
+            "tn":10,"tx":26,"ut":4, "vt":3, "va":11,"wa":9, "wv":6,
+            "wi":11,"wy":3,
+        },
+        1980: {
+            "al":9, "ak":3, "az":6, "ar":6, "ca":45,"co":7, "ct":8,
+            "dc":3, "de":3, "fl":17,"ga":12,"hi":4, "id":4, "il":26,
+            "in":13,"ia":8, "ks":7, "ky":9, "la":10,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":14,"mi":21,"mn":10,"ms":7, "mo":12,"mt":4,
+            "nv":3, "nh":4, "nj":17,"nm":4, "ny":41,"nc":13,"nd":3,
+            "oh":25,"ok":8, "or":6, "pa":27,"ri":4, "sc":8, "sd":4,
+            "tn":10,"tx":26,"ut":4, "vt":3, "va":11,"wa":9, "wv":6,
+            "wi":11,"wy":3,
+        },
+        1984: {
+            "al":9, "ak":3, "az":7, "ar":6, "ca":47,"co":8, "ct":8,
+            "dc":3, "de":3, "fl":21,"ga":12,"hi":4, "id":4, "il":24,
+            "in":12,"ia":8, "ks":7, "ky":9, "la":10,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":13,"mi":20,"mn":10,"ms":7, "mo":11,"mt":4,
+            "nv":4, "nh":4, "nj":16,"nm":5, "ny":36,"nc":13,"nd":3,
+            "oh":23,"ok":8, "or":7, "pa":25,"ri":4, "sc":8, "sd":3,
+            "tn":11,"tx":29,"ut":5, "vt":3, "va":12,"wa":10,"wv":6,
+            "wi":11,"wy":3,
+            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+        },
+        1988: {
+            "al":9, "ak":3, "az":7, "ar":6, "ca":47,"co":8, "ct":8,
+            "dc":3, "de":3, "fl":21,"ga":12,"hi":4, "id":4, "il":24,
+            "in":12,"ia":8, "ks":7, "ky":9, "la":10,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":13,"mi":20,"mn":10,"ms":7, "mo":11,"mt":4,
+            "nv":4, "nh":4, "nj":16,"nm":5, "ny":36,"nc":13,"nd":3,
+            "oh":23,"ok":8, "or":7, "pa":25,"ri":4, "sc":8, "sd":3,
+            "tn":11,"tx":29,"ut":5, "vt":3, "va":12,"wa":10,"wv":6,
+            "wi":11,"wy":3,
+            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+        },
+        1992: {
+            "al":9, "ak":3, "az":8, "ar":6, "ca":54,"co":8, "ct":8,
+            "dc":3, "de":3, "fl":25,"ga":13,"hi":4, "id":4, "il":22,
+            "in":12,"ia":7, "ks":6, "ky":8, "la":9,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":12,"mi":18,"mn":10,"ms":7, "mo":11,"mt":3,
+            "nv":4, "nh":4, "nj":15,"nm":5, "ny":33,"nc":14,"nd":3,
+            "oh":21,"ok":8, "or":7, "pa":23,"ri":4, "sc":8, "sd":3,
+            "tn":11,"tx":32,"ut":5, "vt":3, "va":13,"wa":11,"wv":5,
+            "wi":11,"wy":3,
+            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+        },
+        1996: {
+            "al":9, "ak":3, "az":8, "ar":6, "ca":54,"co":8, "ct":8,
+            "dc":3, "de":3, "fl":25,"ga":13,"hi":4, "id":4, "il":22,
+            "in":12,"ia":7, "ks":6, "ky":8, "la":9,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":12,"mi":18,"mn":10,"ms":7, "mo":11,"mt":3,
+            "nv":4, "nh":4, "nj":15,"nm":5, "ny":33,"nc":14,"nd":3,
+            "oh":21,"ok":8, "or":7, "pa":23,"ri":4, "sc":8, "sd":3,
+            "tn":11,"tx":32,"ut":5, "vt":3, "va":13,"wa":11,"wv":5,
+            "wi":11,"wy":3,
+            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+        },
+        2000: {
+            "al":9, "ak":3, "az":8, "ar":6, "ca":54,"co":8, "ct":8,
+            "dc":3, "de":3, "fl":25,"ga":13,"hi":4, "id":4, "il":22,
+            "in":12,"ia":7, "ks":6, "ky":8, "la":9,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":12,"mi":18,"mn":10,"ms":7, "mo":11,"mt":3,
+            "nv":4, "nh":4, "nj":15,"nm":5, "ny":33,"nc":14,"nd":3,
+            "oh":21,"ok":8, "or":7, "pa":23,"ri":4, "sc":8, "sd":3,
+            "tn":11,"tx":32,"ut":5, "vt":3, "va":13,"wa":11,"wv":5,
+            "wi":11,"wy":3,
+            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+        },
+        2004: {
+            "al":9, "ak":3, "az":10,"ar":6, "ca":55,"co":9, "ct":7,
+            "dc":3, "de":3, "fl":27,"ga":15,"hi":4, "id":4, "il":21,
+            "in":11,"ia":7, "ks":6, "ky":8, "la":9,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":12,"mi":17,"mn":10,"ms":6, "mo":11,"mt":3,
+            "nv":5, "nh":4, "nj":15,"nm":5, "ny":31,"nc":15,"nd":3,
+            "oh":20,"ok":7, "or":7, "pa":21,"ri":4, "sc":8, "sd":3,
+            "tn":11,"tx":34,"ut":5, "vt":3, "va":13,"wa":11,"wv":5,
+            "wi":10,"wy":3,
+            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+        },
+        2008: {
+            "al":9, "ak":3, "az":10,"ar":6, "ca":55,"co":9, "ct":7,
+            "dc":3, "de":3, "fl":27,"ga":15,"hi":4, "id":4, "il":21,
+            "in":11,"ia":7, "ks":6, "ky":8, "la":9,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":12,"mi":17,"mn":10,"ms":6, "mo":11,"mt":3,
+            "nv":5, "nh":4, "nj":15,"nm":5, "ny":31,"nc":15,"nd":3,
+            "oh":20,"ok":7, "or":7, "pa":21,"ri":4, "sc":8, "sd":3,
+            "tn":11,"tx":34,"ut":5, "vt":3, "va":13,"wa":11,"wv":5,
+            "wi":10,"wy":3,
+            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+        },
+        2012: {
+            "al":9, "ak":3, "az":11,"ar":6, "ca":55,"co":9, "ct":7,
+            "dc":3, "de":3, "fl":29,"ga":16,"hi":4, "id":4, "il":20,
+            "in":11,"ia":6, "ks":6, "ky":8, "la":8,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":11,"mi":16,"mn":10,"ms":6, "mo":10,"mt":3,
+            "nv":6, "nh":4, "nj":14,"nm":5, "ny":29,"nc":15,"nd":3,
+            "oh":18,"ok":7, "or":7, "pa":20,"ri":4, "sc":9, "sd":3,
+            "tn":11,"tx":38,"ut":6, "vt":3, "va":13,"wa":12,"wv":5,
+            "wi":10,"wy":3,
+            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+        },
+        2016: {
+            "al":9, "ak":3, "az":11,"ar":6, "ca":55,"co":9, "ct":7,
+            "dc":3, "de":3, "fl":29,"ga":16,"hi":4, "id":4, "il":20,
+            "in":11,"ia":6, "ks":6, "ky":8, "la":8,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":11,"mi":16,"mn":10,"ms":6, "mo":10,"mt":3,
+            "nv":6, "nh":4, "nj":14,"nm":5, "ny":29,"nc":15,"nd":3,
+            "oh":18,"ok":7, "or":7, "pa":20,"ri":4, "sc":9, "sd":3,
+            "tn":11,"tx":38,"ut":6, "vt":3, "va":13,"wa":12,"wv":5,
+            "wi":10,"wy":3,
+            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+        },
+        2020: {
+            "al":9, "ak":3, "az":11,"ar":6, "ca":55,"co":9, "ct":7,
+            "dc":3, "de":3, "fl":29,"ga":16,"hi":4, "id":4, "il":20,
+            "in":11,"ia":6, "ks":6, "ky":8, "la":8,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":11,"mi":16,"mn":10,"ms":6, "mo":10,"mt":3,
+            "nv":6, "nh":4, "nj":14,"nm":5, "ny":29,"nc":15,"nd":3,
+            "oh":18,"ok":7, "or":7, "pa":20,"ri":4, "sc":9, "sd":3,
+            "tn":11,"tx":38,"ut":6, "vt":3, "va":13,"wa":12,"wv":5,
+            "wi":10,"wy":3,
+            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+        },
+        2024: {
+            "al":9, "ak":3, "az":11,"ar":6, "ca":54,"co":10,"ct":7,
+            "dc":3, "de":3, "fl":30,"ga":16,"hi":4, "id":4, "il":19,
+            "in":11,"ia":6, "ks":6, "ky":8, "la":8,
+            "me-al":2,"me-01":1,"me-02":1,
+            "md":10,"ma":11,"mi":15,"mn":10,"ms":6, "mo":10,"mt":4,
+            "nv":6, "nh":4, "nj":14,"nm":5, "ny":28,"nc":16,"nd":3,
+            "oh":17,"ok":7, "or":8, "pa":19,"ri":4, "sc":9, "sd":3,
+            "tn":11,"tx":40,"ut":6, "vt":3, "va":13,"wa":12,"wv":4,
+            "wi":10,"wy":3,
+            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+        },
     }
+
+    # Look up the correct EV table for this election year.
+    # Fall back to 2024 apportionment for any year not in the table
+    # (e.g. user-uploaded custom CSVs with year=0).
+    EV_BY_REGION = EV_BY_YEAR.get(int(year), EV_BY_YEAR[2024])
 
     # ── Postal code → YAPms region id(s) ──────────────────────────────────────
     # Most states map 1-to-1.  ME and NE are split into at-large + CD ids;
@@ -679,18 +899,21 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
             "margins": [{"color": c} for c in meta["colors"]],
         })
 
-    # Determine YAPms year / variant strings
-    # YAPms uses special map IDs for elections it has built-in SVGs for.
-    # Years before 2024 use "results" variant (actual map); 2024 uses a specific
-    # internal id; future/custom years use "blank" (unlabelled outline map).
-    yapmsyear = str(year)
-    if int(year) < 2024 and int(year) != 0:
-        variant = "results"
+    # ── Determine YAPms year / variant strings ─────────────────────────────────
+    # "results" variant tells YAPms to use its built-in SVG map for that year.
+    # The EV counts in our regions must exactly match YAPms's stored permaVal
+    # for that year — that's what EV_BY_YEAR above ensures, preventing ghost
+    # electors from appearing when YAPms merges the imported data with its own.
+    # Year 0 means user-uploaded CSV with no specific year; use 2024 map + blank.
+    if int(year) == 0:
+        yapmsyear = "2024310"
+        variant   = "blank"
     elif int(year) == 2024:
         yapmsyear = "2024310"
         variant   = "results"
-    else:  # year == 0 (user-uploaded) or any future year
-        variant = "blank"
+    else:
+        yapmsyear = str(year)
+        variant   = "results"
 
     # ── Assemble and write the final YAPms JSON ────────────────────────────────
     yapms_state = {
@@ -971,6 +1194,11 @@ if __name__ == "__main__":
     app.run(debug=True)
     try: # deletes 0results.csv
         os.remove("C:/Users/leoth/Mapchart-txtmaker/0results.csv")
+        print("File deleted successfully.")
+    except FileNotFoundError:
+        pass
+    try: # deletes 0results.csv
+        os.remove("C:/Users/leoth/Mapchart-txtmaker/StateLevel.json")
         print("File deleted successfully.")
     except FileNotFoundError:
         pass
