@@ -15,16 +15,27 @@ filePath = "C:/Users/leoth/Mapchart-txtmaker/"+str(year)+"results.csv"
 print(filePath)
 editThis = open(filePath)
 
-for county in editThis:
-    data = county.split(',')
-    if data[1] == "County__State_Code":
-        newdata = data[0:1]+["YAPms_name"]+data[2:]
-        data=newdata
-        continue
-    countyname_MC = data[1]
-    countyname_Y = countyname_MC.replace("_"," ")
-    state = countyname_Y[-2:]
-    countyname_Y = countyname_Y[:-3]+stateCodesDict[state]
-    newdata = data[0:1]+[countyname_Y]+data[2:]
-    data=newdata
-    print(data)
+
+##text=List of strings to be written to file
+with open("new"+str(year)+"results.csv","w") as newfile:
+    for county in editThis:
+        next_line_str = ""
+        data = county.split(',')
+        if data[1] == "County__State_Code":#first line in the csv
+            next_line = data[0:1]+["YAPms_name"]+data[2:]
+            for cell in next_line:
+                next_line_str += ","+str(cell)
+            newfile.write(next_line_str[1:])
+            newfile.write('\n')
+            continue
+        countyname_MC = data[1]
+        countyname_Y = countyname_MC.replace("_"," ")
+        state = countyname_Y[-2:]
+        countyname_Y = countyname_Y[:-3]+stateCodesDict[state]
+        next_line = (data[0:1]+[countyname_Y]+data[2:])
+    
+        for cell in next_line:
+            next_line_str += ","+str(cell)
+        newfile.write(next_line_str[1:])
+        newfile.write('\n')
+        print(data)
