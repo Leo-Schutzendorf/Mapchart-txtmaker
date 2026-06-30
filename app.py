@@ -418,20 +418,23 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
 
                 # new_party_pct = max(0,100-new_otherParty_pct)
                 if otherAsRep:
-                    new_rep_pct = max(0,100-new_dem_pct)
+                    new_rep_pct = max(0, 100.0 - new_dem_pct)
                 elif otherAsDem:
-                    new_dem_pct = min(100.0, new_dem_pct + other_pct)
+                    new_dem_pct = max(0, 100.0 - new_rep_pct)
+
+                # Recalculate raw vote totals from the updated percentages
+                new_dem = round(0.01 * new_dem_pct * total_votes)
+                new_rep = round(0.01 * new_rep_pct * total_votes)
 
                 # Zero out other columns in the output row (only if present in CSV)
-                if otherAsDem or otherAsRep:
-                    keep = {'County__State_Code', 'Total_Votes', 'Winner', 'Winner_Pct',
-                            'Democrat_Votes', 'Democrat_Pct', 'Republican_Votes', 'Republican_Pct'}
-                    for field in fieldnames:
-                        if field not in keep:
-                            if 'Votes' in field:
-                                out_row[field] = 0
-                            elif 'Pct' in field:
-                                out_row[field] = 0.0
+                keep = {'County__State_Code', 'Total_Votes', 'Winner', 'Winner_Pct',
+                        'Democrat_Votes', 'Democrat_Pct', 'Republican_Votes', 'Republican_Pct'}
+                for field in fieldnames:
+                    if field not in keep:
+                        if 'Votes' in field:
+                            out_row[field] = 0
+                        elif 'Pct' in field:
+                            out_row[field] = 0.0
 
             # 3. Derive winner from the final values
             if new_rep_pct > new_dem_pct:
@@ -442,10 +445,12 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
                 new_winner = out_row['Winner']
                 new_pct    = float(out_row['Winner_Pct'])
 
-            out_row['Democrat_Pct']   = round(new_dem_pct, 4)
-            out_row['Republican_Pct'] = round(new_rep_pct, 4)
-            out_row['Winner']         = new_winner
-            out_row['Winner_Pct']     = round(new_pct, 4)
+            out_row['Democrat_Votes']   = int(new_dem)
+            out_row['Republican_Votes'] = int(new_rep)
+            out_row['Democrat_Pct']     = round(new_dem_pct, 4)
+            out_row['Republican_Pct']   = round(new_rep_pct, 4)
+            out_row['Winner']           = new_winner
+            out_row['Winner_Pct']       = round(new_pct, 4)
 
             writer.writerow(out_row)
     # ── Write StateLevel.json ─────────────────────────────────────────────────
