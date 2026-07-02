@@ -910,6 +910,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     # for that year — that's what EV_BY_YEAR above ensures, preventing ghost
     # electors from appearing when YAPms merges the imported data with its own.
     # Year 0 means user-uploaded CSV with no specific year; use 2024 map + blank.
+    yapmscountyyear = 2023 #There are two county map options on YAPms: 2020 and 2023.
     if int(year) == 0:
         yapmsyear = "2024310"
         variant   = "blank"
@@ -919,6 +920,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     else:
         yapmsyear = str(year)
         variant   = "results"
+        yapmscountyyear = 2020
 
     # ── Assemble and write the final YAPms JSON ────────────────────────────────
     yapms_state = {
