@@ -87,6 +87,8 @@ countyDict = {
   "Gila04": "Gila__AZ",
   "Graham04": "Graham__AZ",
   "Greenlee04": "Greenlee__AZ",
+  "Greenlee04": "Greenlee__AZ",
+  "La Paz04": "La_Paz__AZ",
   "Maricopa04": "Maricopa__AZ",
   "Mohave04": "Mohave__AZ",
   "Navajo04": "Navajo__AZ",
@@ -1177,8 +1179,8 @@ countyDict = {
   "York23": "York__ME",
   "Allegany24": "Allegany__MD",
   "Anne Arundel24": "Anne_Arundel__MD",
-  "BaltimoreCity24": "Baltimore_County__MD",
-  "BaltimoreCounty24": "Baltimore_City__MD",
+  "BaltimoreCounty24": "Baltimore_County__MD",
+  "BaltimoreCity24": "Baltimore_City__MD",
   "Calvert24": "Calvert__MD",
   "Caroline24": "Caroline__MD",
   "Carroll24": "Carroll__MD",
@@ -1780,6 +1782,7 @@ countyDict = {
   "Bernalillo35": "Bernalillo__NM",
   "Catron35": "Catron__NM",
   "Chaves35": "Chaves__NM",
+  "Cibola35": "Cibola__NM",
   "Colfax35": "Colfax__NM",
   "Curry35": "Curry__NM",
   "De Baca35": "De_Baca__NM",
@@ -2393,12 +2396,12 @@ countyDict = {
   "Miner46": "Miner__SD",
   "Minnehaha46": "Minnehaha__SD",
   "Moody46": "Moody__SD",
-  "Oglala Lakota46": "Pennington__SD",
-  "Pennington46": "Perkins__SD",
-  "Perkins46": "Potter__SD",
-  "Potter46": "Roberts__SD",
-  "Roberts46": "Sanborn__SD",
-  "Sanborn46": "Oglala_Lakota__SD",
+  "Oglala Lakota46": "Oglala_Lakota__SD",
+  "Pennington46": "Pennington__SD",
+  "Perkins46": "Perkins__SD",
+  "Potter46": "Potter__SD",
+  "Roberts46": "Roberts__SD",
+  "Sanborn46": "Sanborn__SD",
   "Spink46": "Spink__SD",
   "Stanley46": "Stanley__SD",
   "Sully46": "Sully__SD",
@@ -2838,8 +2841,8 @@ countyDict = {
   "Dinwiddie51": "Dinwiddie__VA",
   "Emporia51": "Emporia__VA",
   "Essex51": "Essex__VA",
-  "Fairfax51": "Fairfax_Co___VA",
-  "Fairfax51-02": "Fairfax__VA",
+  "Fairfax51-02": "Fairfax_Co___VA",
+  "Fairfax51": "Fairfax__VA",
   "Falls Church51": "Falls_Church__VA",
   "Fauquier51": "Fauquier__VA",
   "Floyd51": "Floyd__VA",
@@ -3125,30 +3128,41 @@ countyDict = {
   "Weston56": "Weston__WY"
 }
 
-filePath = "C:/Users/leoth/Mapchart-txtmaker/"+str(year)+"results.csv"
+import csv
+
+# countyDict maps "CountyNameStateCode" -> "County__State" (the value that
+# appears in the County__State_Code column of the results CSV). To fill in
+# the new YAPms__Code column we need to go the other way: given the
+# "County__State" text in a row, look up the matching "CountyNameStateCode"
+# key. So we build a reverse lookup once, up front.
+reverseCountyDict = {value: key for key, value in countyDict.items()}
+
+filePath = str(year) + "results.csv"
+outPath = "new" + str(year) + "results.csv"
+
 print(filePath)
-editThis = open(filePath)
 
+# encoding="utf-8-sig" quietly strips a leading BOM if the CSV has one
+# (common when exporting from Excel), and the csv module correctly handles
+# commas/newlines instead of naively splitting on ",".
+with open(filePath, newline="", encoding="utf-8-sig") as infile, \
+     open(outPath, "w", newline="", encoding="utf-8-sig") as outfile:
 
-##text=List of strings to be written to file
-with open("new"+str(year)+"results.csv","w") as newfile:
-    
-    for county in editThis:# ONLY the first line in the csv
-        next_line_str = ""
-        data = county.split(',')
-        if data[1] == "County__State_Code":
-            next_line = data[0:1]+["YAPms_name"]+["MapChart_name"]+data[2:]
-            for cell in next_line:
-                next_line_str += ","+str(cell)
-            newfile.write(next_line_str[1:])
-            newfile.write('\n')
-            continue
-        break
-    for county in countyDict:
-        next_line = (data[0:1]+[county]+data[1:])
-    
-        for cell in next_line:
-            next_line_str += ","+str(cell)
-        newfile.write(next_line_str[1:])
-        newfile.write('\n')
-        print(data)
+    reader = csv.reader(infile)
+    writer = csv.writer(outfile)
+
+    header = next(reader)
+    col_index = header.index("County__State_Code")
+
+    new_header = header[:col_index + 1] + ["YAPms__Code"] + header[col_index + 1:]
+    writer.writerow(new_header)
+
+    for row in reader:
+        county_state = row[col_index]
+        yapms_code = reverseCountyDict.get(county_state, "")
+        if yapms_code == "":
+            print(f"Warning: no YAPms code found for '{county_state}'")
+        new_row = row[:col_index + 1] + [yapms_code] + row[col_index + 1:]
+        writer.writerow(new_row)
+
+print(f"Wrote {outPath}")
