@@ -5,7 +5,7 @@
 ```
 your_folder/
 ├── app.py               ← Flask server (new)
-├── namechanges.py       ← your existing file, unchanged
+├── specialRegions.py       ← your existing file, unchanged
 ├── templates/
 │   └── index.html       ← the web frontend (new)
 └── setup.bat            ← one-time installer (Windows)

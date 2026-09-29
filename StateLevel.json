@@ -1,0 +1,825 @@
+{
+  "map": {
+    "country": "usa",
+    "type": "presidential",
+    "year": "1980",
+    "variant": "results"
+  },
+  "tossup": {
+    "id": "",
+    "name": "Tossup",
+    "defaultCount": 0,
+    "margins": [
+      {
+        "color": "#cccccc"
+      }
+    ]
+  },
+  "candidates": [
+    {
+      "id": "0",
+      "name": "Democrat",
+      "defaultCount": 0,
+      "margins": [
+        {
+          "color": "#1C408C"
+        },
+        {
+          "color": "#577CCC"
+        },
+        {
+          "color": "#8AAFFF"
+        },
+        {
+          "color": "#949BB3"
+        }
+      ]
+    },
+    {
+      "id": "1",
+      "name": "Republican",
+      "defaultCount": 0,
+      "margins": [
+        {
+          "color": "#BF1D29"
+        },
+        {
+          "color": "#FF5865"
+        },
+        {
+          "color": "#FF8B98"
+        },
+        {
+          "color": "#CF8980"
+        }
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "ak",
+      "value": 3,
+      "permaVal": 3,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "0",
+          "count": 3,
+          "margin": 3
+        }
+      ]
+    },
+    {
+      "id": "al",
+      "value": 9,
+      "permaVal": 9,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 9,
+          "margin": 2
+        }
+      ]
+    },
+    {
+      "id": "ar",
+      "value": 6,
+      "permaVal": 6,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 6,
+          "margin": 2
+        }
+      ]
+    },
+    {
+      "id": "az",
+      "value": 6,
+      "permaVal": 6,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 6,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "ca",
+      "value": 45,
+      "permaVal": 45,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 45,
+          "margin": 2
+        }
+      ]
+    },
+    {
+      "id": "co",
+      "value": 7,
+      "permaVal": 7,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 7,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "ct",
+      "value": 8,
+      "permaVal": 8,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 8,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "dc",
+      "value": 3,
+      "permaVal": 3,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "0",
+          "count": 3,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "de",
+      "value": 3,
+      "permaVal": 3,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 3,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "fl",
+      "value": 17,
+      "permaVal": 17,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 17,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "ga",
+      "value": 12,
+      "permaVal": 12,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "0",
+          "count": 12,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "hi",
+      "value": 4,
+      "permaVal": 4,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 4,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "ia",
+      "value": 8,
+      "permaVal": 8,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 8,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "id",
+      "value": 4,
+      "permaVal": 4,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 4,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "il",
+      "value": 26,
+      "permaVal": 26,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 26,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "in",
+      "value": 13,
+      "permaVal": 13,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 13,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "ks",
+      "value": 7,
+      "permaVal": 7,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 7,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "ky",
+      "value": 9,
+      "permaVal": 9,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 9,
+          "margin": 2
+        }
+      ]
+    },
+    {
+      "id": "la",
+      "value": 10,
+      "permaVal": 10,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 10,
+          "margin": 2
+        }
+      ]
+    },
+    {
+      "id": "ma",
+      "value": 14,
+      "permaVal": 14,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 14,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "md",
+      "value": 10,
+      "permaVal": 10,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 10,
+          "margin": 2
+        }
+      ]
+    },
+    {
+      "id": "me",
+      "value": 4,
+      "permaVal": 4,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 4,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "mi",
+      "value": 21,
+      "permaVal": 21,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 21,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "mn",
+      "value": 10,
+      "permaVal": 10,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 10,
+          "margin": 2
+        }
+      ]
+    },
+    {
+      "id": "mo",
+      "value": 12,
+      "permaVal": 12,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 12,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "ms",
+      "value": 7,
+      "permaVal": 7,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 7,
+          "margin": 3
+        }
+      ]
+    },
+    {
+      "id": "mt",
+      "value": 4,
+      "permaVal": 4,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 4,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "nc",
+      "value": 13,
+      "permaVal": 13,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 13,
+          "margin": 2
+        }
+      ]
+    },
+    {
+      "id": "nd",
+      "value": 3,
+      "permaVal": 3,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 3,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "ne",
+      "value": 0,
+      "permaVal": 0,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 0,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "nh",
+      "value": 4,
+      "permaVal": 4,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 4,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "nj",
+      "value": 17,
+      "permaVal": 17,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 17,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "nm",
+      "value": 4,
+      "permaVal": 4,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 4,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "nv",
+      "value": 3,
+      "permaVal": 3,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 3,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "ny",
+      "value": 41,
+      "permaVal": 41,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 41,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "oh",
+      "value": 25,
+      "permaVal": 25,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 25,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "ok",
+      "value": 8,
+      "permaVal": 8,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 8,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "or",
+      "value": 6,
+      "permaVal": 6,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 6,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "pa",
+      "value": 27,
+      "permaVal": 27,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 27,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "ri",
+      "value": 4,
+      "permaVal": 4,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 4,
+          "margin": 2
+        }
+      ]
+    },
+    {
+      "id": "sc",
+      "value": 8,
+      "permaVal": 8,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 8,
+          "margin": 3
+        }
+      ]
+    },
+    {
+      "id": "sd",
+      "value": 4,
+      "permaVal": 4,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 4,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "tn",
+      "value": 10,
+      "permaVal": 10,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 10,
+          "margin": 3
+        }
+      ]
+    },
+    {
+      "id": "tx",
+      "value": 26,
+      "permaVal": 26,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 26,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "ut",
+      "value": 4,
+      "permaVal": 4,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 4,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "va",
+      "value": 11,
+      "permaVal": 11,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 11,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "vt",
+      "value": 3,
+      "permaVal": 3,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 3,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "wa",
+      "value": 9,
+      "permaVal": 9,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 9,
+          "margin": 0
+        }
+      ]
+    },
+    {
+      "id": "wi",
+      "value": 11,
+      "permaVal": 11,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 11,
+          "margin": 1
+        }
+      ]
+    },
+    {
+      "id": "wv",
+      "value": 6,
+      "permaVal": 6,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 6,
+          "margin": 3
+        }
+      ]
+    },
+    {
+      "id": "wy",
+      "value": 3,
+      "permaVal": 3,
+      "locked": false,
+      "permaLocked": false,
+      "disabled": false,
+      "candidates": [
+        {
+          "id": "1",
+          "count": 3,
+          "margin": 0
+        }
+      ]
+    }
+  ]
+}

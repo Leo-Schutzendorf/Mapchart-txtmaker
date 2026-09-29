@@ -152,6 +152,18 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         fieldnames = reader.fieldnames
         rows = list(reader)
 
+    # Whether this CSV has a YAPms__Code column (added by yapms.py). The
+    # county-level YAPms JSON needs these compact codes (e.g. "Autauga01")
+    # to match yapms.com's internal county ids — County__State_Code values
+    # (e.g. "Autauga__AL") aren't understood by YAPms's importer.
+    has_yapms_column = bool(fieldnames) and 'YAPms__Code' in fieldnames
+    code_to_yapms = {}
+    if has_yapms_column:
+        for county in rows:
+            yc = county.get('YAPms__Code')
+            if yc:
+                code_to_yapms[county['County__State_Code']] = yc
+
     # ── Bucket every county from the CSV ──────────────────────────────────────
     # Reads County__State_Code, Winner, and Winner_Pct columns by name
     # so column order doesn't matter and the header row is skipped automatically.
@@ -476,14 +488,14 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     # Each sub-dict must exactly match what YAPms stores internally for that
     # year's "results" map — if value/count don't match the built-in permaVal,
     # YAPms treats the difference as unassigned and creates ghost electors.
-    # ME/NE district splits (me-01, me-02, ne-01…ne-03) only exist from 1972+;
+    # No ME/NE district splits (me-01, me-02, ne-01…ne-03).  That would require precinct data and advanced GIS;
     # DC (dc) only from 1964+.  Earlier years omit those keys entirely.
     # Source: official NARA/FEC apportionment records.
     EV_BY_YEAR = {
         1948: {
             "al":11,"az":4, "ar":9, "ca":25,"co":6, "ct":8, "de":3,
             "fl":8, "ga":12,"id":4, "il":28,"in":13,"ia":10,"ks":8,
-            "ky":11,"la":10,"me-al":5,"md":8, "ma":16,"mi":19,"mn":11,
+            "ky":11,"la":10,"me":5,"md":8, "ma":16,"mi":19,"mn":11,
             "ms":9, "mo":15,"mt":4, "nv":3, "nh":4, "nj":16,"nm":4,
             "ny":47,"nc":14,"nd":4, "oh":25,"ok":10,"or":6, "pa":35,
             "ri":4, "sc":8, "sd":4, "tn":12,"tx":23,"ut":4, "vt":3,
@@ -492,7 +504,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         1952: {
             "al":11,"ak":0, "az":4, "ar":8, "ca":32,"co":6, "ct":8,
             "de":3, "fl":10,"ga":12,"hi":0, "id":4, "il":27,"in":13,
-            "ia":10,"ks":8, "ky":10,"la":10,"me-al":5,"md":9, "ma":16,
+            "ia":10,"ks":8, "ky":10,"la":10,"me":5,"md":9, "ma":16,
             "mi":20,"mn":11,"ms":8, "mo":13,"mt":4, "nv":3, "nh":4,
             "nj":16,"nm":4, "ny":45,"nc":14,"nd":4, "oh":25,"ok":8,
             "or":6, "pa":32,"ri":4, "sc":8, "sd":4, "tn":11,"tx":24,
@@ -501,7 +513,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         1956: {
             "al":11,"ak":0, "az":4, "ar":8, "ca":32,"co":6, "ct":8,
             "de":3, "fl":10,"ga":12,"hi":0, "id":4, "il":27,"in":13,
-            "ia":10,"ks":8, "ky":10,"la":10,"me-al":5,"md":9, "ma":16,
+            "ia":10,"ks":8, "ky":10,"la":10,"me":5,"md":9, "ma":16,
             "mi":20,"mn":11,"ms":8, "mo":13,"mt":4, "nv":3, "nh":4,
             "nj":16,"nm":4, "ny":45,"nc":14,"nd":4, "oh":25,"ok":8,
             "or":6, "pa":32,"ri":4, "sc":8, "sd":4, "tn":11,"tx":24,
@@ -510,7 +522,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         1960: {
             "al":11,"ak":3, "az":4, "ar":8, "ca":32,"co":6, "ct":8,
             "de":3, "fl":10,"ga":12,"hi":3, "id":4, "il":27,"in":13,
-            "ia":10,"ks":8, "ky":10,"la":10,"me-al":5,"md":9, "ma":16,
+            "ia":10,"ks":8, "ky":10,"la":10,"me":5,"md":9, "ma":16,
             "mi":20,"mn":11,"ms":8, "mo":13,"mt":4, "nv":3, "nh":4,
             "nj":16,"nm":4, "ny":45,"nc":14,"nd":4, "oh":25,"ok":8,
             "or":6, "pa":32,"ri":4, "sc":8, "sd":4, "tn":11,"tx":24,
@@ -519,7 +531,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         1964: {
             "al":10,"ak":3, "az":5, "ar":6, "ca":40,"co":6, "ct":8,
             "dc":3, "de":3, "fl":14,"ga":12,"hi":4, "id":4, "il":26,
-            "in":13,"ia":9, "ks":7, "ky":9, "la":10,"me-al":4,"md":10,
+            "in":13,"ia":9, "ks":7, "ky":9, "la":10,"me":4,"md":10,
             "ma":14,"mi":21,"mn":10,"ms":7, "mo":12,"mt":4, "nv":3,
             "nh":4, "nj":17,"nm":4, "ny":43,"nc":13,"nd":4, "oh":26,
             "ok":8, "or":6, "pa":29,"ri":4, "sc":8, "sd":4, "tn":11,
@@ -529,7 +541,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         1968: {
             "al":10,"ak":3, "az":5, "ar":6, "ca":40,"co":6, "ct":8,
             "dc":3, "de":3, "fl":14,"ga":12,"hi":4, "id":4, "il":26,
-            "in":13,"ia":9, "ks":7, "ky":9, "la":10,"me-al":4,"md":10,
+            "in":13,"ia":9, "ks":7, "ky":9, "la":10,"me":4,"md":10,
             "ma":14,"mi":21,"mn":10,"ms":7, "mo":12,"mt":4, "nv":3,
             "nh":4, "nj":17,"nm":4, "ny":43,"nc":13,"nd":4, "oh":26,
             "ok":8, "or":6, "pa":29,"ri":4, "sc":8, "sd":4, "tn":11,
@@ -540,7 +552,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
             "al":9, "ak":3, "az":6, "ar":6, "ca":45,"co":7, "ct":8,
             "dc":3, "de":3, "fl":17,"ga":12,"hi":4, "id":4, "il":26,
             "in":13,"ia":8, "ks":7, "ky":9, "la":10,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":14,"mi":21,"mn":10,"ms":7, "mo":12,"mt":4,
             "nv":3, "nh":4, "nj":17,"nm":4, "ny":41,"nc":13,"nd":3,
             "oh":25,"ok":8, "or":6, "pa":27,"ri":4, "sc":8, "sd":4,
@@ -551,7 +563,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
             "al":9, "ak":3, "az":6, "ar":6, "ca":45,"co":7, "ct":8,
             "dc":3, "de":3, "fl":17,"ga":12,"hi":4, "id":4, "il":26,
             "in":13,"ia":8, "ks":7, "ky":9, "la":10,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":14,"mi":21,"mn":10,"ms":7, "mo":12,"mt":4,
             "nv":3, "nh":4, "nj":17,"nm":4, "ny":41,"nc":13,"nd":3,
             "oh":25,"ok":8, "or":6, "pa":27,"ri":4, "sc":8, "sd":4,
@@ -562,7 +574,7 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
             "al":9, "ak":3, "az":6, "ar":6, "ca":45,"co":7, "ct":8,
             "dc":3, "de":3, "fl":17,"ga":12,"hi":4, "id":4, "il":26,
             "in":13,"ia":8, "ks":7, "ky":9, "la":10,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":14,"mi":21,"mn":10,"ms":7, "mo":12,"mt":4,
             "nv":3, "nh":4, "nj":17,"nm":4, "ny":41,"nc":13,"nd":3,
             "oh":25,"ok":8, "or":6, "pa":27,"ri":4, "sc":8, "sd":4,
@@ -573,133 +585,132 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
             "al":9, "ak":3, "az":7, "ar":6, "ca":47,"co":8, "ct":8,
             "dc":3, "de":3, "fl":21,"ga":12,"hi":4, "id":4, "il":24,
             "in":12,"ia":8, "ks":7, "ky":9, "la":10,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":13,"mi":20,"mn":10,"ms":7, "mo":11,"mt":4,
             "nv":4, "nh":4, "nj":16,"nm":5, "ny":36,"nc":13,"nd":3,
             "oh":23,"ok":8, "or":7, "pa":25,"ri":4, "sc":8, "sd":3,
             "tn":11,"tx":29,"ut":5, "vt":3, "va":12,"wa":10,"wv":6,
             "wi":11,"wy":3,
-            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+            "ne":5,
         },
         1988: {
             "al":9, "ak":3, "az":7, "ar":6, "ca":47,"co":8, "ct":8,
             "dc":3, "de":3, "fl":21,"ga":12,"hi":4, "id":4, "il":24,
             "in":12,"ia":8, "ks":7, "ky":9, "la":10,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":13,"mi":20,"mn":10,"ms":7, "mo":11,"mt":4,
             "nv":4, "nh":4, "nj":16,"nm":5, "ny":36,"nc":13,"nd":3,
             "oh":23,"ok":8, "or":7, "pa":25,"ri":4, "sc":8, "sd":3,
             "tn":11,"tx":29,"ut":5, "vt":3, "va":12,"wa":10,"wv":6,
             "wi":11,"wy":3,
-            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+            "ne":5,
         },
         1992: {
             "al":9, "ak":3, "az":8, "ar":6, "ca":54,"co":8, "ct":8,
             "dc":3, "de":3, "fl":25,"ga":13,"hi":4, "id":4, "il":22,
             "in":12,"ia":7, "ks":6, "ky":8, "la":9,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":12,"mi":18,"mn":10,"ms":7, "mo":11,"mt":3,
             "nv":4, "nh":4, "nj":15,"nm":5, "ny":33,"nc":14,"nd":3,
             "oh":21,"ok":8, "or":7, "pa":23,"ri":4, "sc":8, "sd":3,
             "tn":11,"tx":32,"ut":5, "vt":3, "va":13,"wa":11,"wv":5,
             "wi":11,"wy":3,
-            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+            "ne":5,
         },
         1996: {
             "al":9, "ak":3, "az":8, "ar":6, "ca":54,"co":8, "ct":8,
             "dc":3, "de":3, "fl":25,"ga":13,"hi":4, "id":4, "il":22,
             "in":12,"ia":7, "ks":6, "ky":8, "la":9,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":12,"mi":18,"mn":10,"ms":7, "mo":11,"mt":3,
             "nv":4, "nh":4, "nj":15,"nm":5, "ny":33,"nc":14,"nd":3,
             "oh":21,"ok":8, "or":7, "pa":23,"ri":4, "sc":8, "sd":3,
             "tn":11,"tx":32,"ut":5, "vt":3, "va":13,"wa":11,"wv":5,
             "wi":11,"wy":3,
-            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+            "ne":5,
         },
         2000: {
             "al":9, "ak":3, "az":8, "ar":6, "ca":54,"co":8, "ct":8,
             "dc":3, "de":3, "fl":25,"ga":13,"hi":4, "id":4, "il":22,
             "in":12,"ia":7, "ks":6, "ky":8, "la":9,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":12,"mi":18,"mn":10,"ms":7, "mo":11,"mt":3,
             "nv":4, "nh":4, "nj":15,"nm":5, "ny":33,"nc":14,"nd":3,
             "oh":21,"ok":8, "or":7, "pa":23,"ri":4, "sc":8, "sd":3,
             "tn":11,"tx":32,"ut":5, "vt":3, "va":13,"wa":11,"wv":5,
             "wi":11,"wy":3,
-            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+            "ne":5,
         },
         2004: {
             "al":9, "ak":3, "az":10,"ar":6, "ca":55,"co":9, "ct":7,
             "dc":3, "de":3, "fl":27,"ga":15,"hi":4, "id":4, "il":21,
             "in":11,"ia":7, "ks":6, "ky":8, "la":9,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":12,"mi":17,"mn":10,"ms":6, "mo":11,"mt":3,
             "nv":5, "nh":4, "nj":15,"nm":5, "ny":31,"nc":15,"nd":3,
             "oh":20,"ok":7, "or":7, "pa":21,"ri":4, "sc":8, "sd":3,
             "tn":11,"tx":34,"ut":5, "vt":3, "va":13,"wa":11,"wv":5,
             "wi":10,"wy":3,
-            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+            "ne":5,
         },
         2008: {
             "al":9, "ak":3, "az":10,"ar":6, "ca":55,"co":9, "ct":7,
             "dc":3, "de":3, "fl":27,"ga":15,"hi":4, "id":4, "il":21,
             "in":11,"ia":7, "ks":6, "ky":8, "la":9,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":12,"mi":17,"mn":10,"ms":6, "mo":11,"mt":3,
             "nv":5, "nh":4, "nj":15,"nm":5, "ny":31,"nc":15,"nd":3,
             "oh":20,"ok":7, "or":7, "pa":21,"ri":4, "sc":8, "sd":3,
             "tn":11,"tx":34,"ut":5, "vt":3, "va":13,"wa":11,"wv":5,
             "wi":10,"wy":3,
-            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+            "ne":5,
         },
         2012: {
             "al":9, "ak":3, "az":11,"ar":6, "ca":55,"co":9, "ct":7,
             "dc":3, "de":3, "fl":29,"ga":16,"hi":4, "id":4, "il":20,
             "in":11,"ia":6, "ks":6, "ky":8, "la":8,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":11,"mi":16,"mn":10,"ms":6, "mo":10,"mt":3,
             "nv":6, "nh":4, "nj":14,"nm":5, "ny":29,"nc":15,"nd":3,
             "oh":18,"ok":7, "or":7, "pa":20,"ri":4, "sc":9, "sd":3,
             "tn":11,"tx":38,"ut":6, "vt":3, "va":13,"wa":12,"wv":5,
             "wi":10,"wy":3,
-            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+            "ne":5,
         },
         2016: {
             "al":9, "ak":3, "az":11,"ar":6, "ca":55,"co":9, "ct":7,
             "dc":3, "de":3, "fl":29,"ga":16,"hi":4, "id":4, "il":20,
             "in":11,"ia":6, "ks":6, "ky":8, "la":8,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":11,"mi":16,"mn":10,"ms":6, "mo":10,"mt":3,
             "nv":6, "nh":4, "nj":14,"nm":5, "ny":29,"nc":15,"nd":3,
             "oh":18,"ok":7, "or":7, "pa":20,"ri":4, "sc":9, "sd":3,
             "tn":11,"tx":38,"ut":6, "vt":3, "va":13,"wa":12,"wv":5,
             "wi":10,"wy":3,
-            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+            "ne":5,
         },
         2020: {
             "al":9, "ak":3, "az":11,"ar":6, "ca":55,"co":9, "ct":7,
             "dc":3, "de":3, "fl":29,"ga":16,"hi":4, "id":4, "il":20,
             "in":11,"ia":6, "ks":6, "ky":8, "la":8,
-            "me-al":2,"me-01":1,"me-02":1,
+            "me":4,
             "md":10,"ma":11,"mi":16,"mn":10,"ms":6, "mo":10,"mt":3,
             "nv":6, "nh":4, "nj":14,"nm":5, "ny":29,"nc":15,"nd":3,
             "oh":18,"ok":7, "or":7, "pa":20,"ri":4, "sc":9, "sd":3,
             "tn":11,"tx":38,"ut":6, "vt":3, "va":13,"wa":12,"wv":5,
             "wi":10,"wy":3,
-            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
+            "ne":5,
         },
         2024: {
             "al":9, "ak":3, "az":11,"ar":6, "ca":54,"co":10,"ct":7,
             "dc":3, "de":3, "fl":30,"ga":16,"hi":4, "id":4, "il":19,
             "in":11,"ia":6, "ks":6, "ky":8, "la":8,
-            "me-al":2,"me-01":1,"me-02":1,
-            "md":10,"ma":11,"mi":15,"mn":10,"ms":6, "mo":10,"mt":4,
+            "me":4,"md":10,
+            "ma":11,"mi":15,"mn":10,"ms":6, "mo":10,"mt":4,"ne":5,
             "nv":6, "nh":4, "nj":14,"nm":5, "ny":28,"nc":16,"nd":3,
             "oh":17,"ok":7, "or":8, "pa":19,"ri":4, "sc":9, "sd":3,
             "tn":11,"tx":40,"ut":6, "vt":3, "va":13,"wa":12,"wv":4,
             "wi":10,"wy":3,
-            "ne-al":2,"ne-01":1,"ne-02":1,"ne-03":1,
         },
     }
 
@@ -717,10 +728,10 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
         "CO": ["co"], "CT": ["ct"], "DE": ["de"], "DC": ["dc"], "FL": ["fl"],
         "GA": ["ga"], "HI": ["hi"], "ID": ["id"], "IL": ["il"], "IN": ["in"],
         "IA": ["ia"], "KS": ["ks"], "KY": ["ky"], "LA": ["la"],
-        "ME": ["me-al", "me-01", "me-02"],
+        "ME": ["me"],
         "MD": ["md"], "MA": ["ma"], "MI": ["mi"], "MN": ["mn"], "MS": ["ms"],
         "MO": ["mo"], "MT": ["mt"],
-        "NE": ["ne-al", "ne-01", "ne-02", "ne-03"],
+        "NE": ["ne"],
         "NV": ["nv"], "NH": ["nh"], "NJ": ["nj"], "NM": ["nm"], "NY": ["ny"],
         "NC": ["nc"], "ND": ["nd"], "OH": ["oh"], "OK": ["ok"], "OR": ["or"],
         "PA": ["pa"], "RI": ["ri"], "SC": ["sc"], "SD": ["sd"], "TN": ["tn"],
@@ -943,6 +954,155 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
     with open(os.path.join(BASE_DIR, "StateLevel.json"), "w", encoding="utf-8") as f:
         json.dump(yapms_state, f, indent=2)
 
+    # ── Write CountyLevel.json ─────────────────────────────────────────────────
+    # County-level equivalent of StateLevel.json — one region per county
+    # (id = the same "NameXX" code used throughout, e.g. "Floyd48").
+    #
+    # bucket_county() above already sorted every county into one of seven
+    # buckets per party, indexed 0-6 for 30-40%, 40-50%, ... 90-100%. YAPms
+    # stores margin shading the opposite way (0 = strongest, 6 = weakest), so
+    # the conversion is simply margin = 6 - bucket_index. For example an
+    # 80-90% county sits in bucket index 5, giving margin 1 — matching how
+    # yapms.com itself encodes an 80-90% county (confirmed against a real
+    # exported map: 80-90% Republican counties carry margin 1, 70-80%
+    # Democratic counties carry margin 2, 40-50% Democratic counties carry
+    # margin 5).
+    county_bucket_lists = {
+        "Democrat":   [Democrat_30_40,   Democrat_40_50,   Democrat_50_60,
+                       Democrat_60_70,   Democrat_70_80,   Democrat_80_90,   Democrat_90_100],
+        "Republican": [Republican_30_40, Republican_40_50, Republican_50_60,
+                       Republican_60_70, Republican_70_80, Republican_80_90, Republican_90_100],
+        "Other":      [Other_30_40,      Other_40_50,      Other_50_60,
+                       Other_60_70,      Other_70_80,      Other_80_90,      Other_90_100],
+        "Wallace":    [Wallace_30_40,    Wallace_40_50,    Wallace_50_60,
+                       Wallace_60_70,    Wallace_70_80,    Wallace_80_90,    Wallace_90_100],
+        "Unpledged":  [Unpledged_30_40,  Unpledged_40_50,  Unpledged_50_60,
+                       Unpledged_60_70,  Unpledged_70_80,  Unpledged_80_90,  Unpledged_90_100],
+        "Perot":      [Perot_30_40,      Perot_40_50,      Perot_50_60,
+                       Perot_60_70,      Perot_70_80,      Perot_80_90,      Perot_90_100],
+    }
+
+    # Same 7-shade palettes used for the MapChart "output" below, but ordered
+    # margin 0 (90-100%, darkest) → margin 6 (30-40%, lightest) since that's
+    # the order YAPms expects in a candidate's "margins" array.
+    COUNTY_MARGIN_COLORS = {
+        "Democrat":   ["#003ab4", "#0645b4", "#1666cb", "#4389e3", "#86b6f2", "#b9d7ff", "#d3e7ff"],
+        "Republican": ["#800000", "#aa0000", "#d40000", "#cc2f4a", "#e27f90", "#f2b3be", "#ffccd0"],
+        "Other":      ["#cc5200", "#e65c00", "#ff6600", "#ff7f2a", "#ff994d", "#ffb380", "#ffccaa"],
+        "Wallace":    ["#400060", "#5c1a7a", "#732d94", "#8e4daa", "#a875c0", "#c49dd0", "#d4b8e0"],
+        "Unpledged":  ["#806000", "#b38600", "#cc9900", "#e6b800", "#f4c200", "#ffdc43", "#ffe680"],
+        "Perot":      ["#246624", "#2b8c2b", "#30a630", "#73d873", "#94c594", "#afe9af", "#c5ffc5"],
+    }
+
+    # Democrat is always candidate id "0" / Republican "1" (matching the
+    # StateLevel.json convention above); only the *name* flips with
+    # switchColors so the two files stay consistent with each other.
+    party_cand_id = {"Democrat": "0", "Republican": "1"}
+
+    # Reuse the same third-party UUIDs assigned during state bucketing above
+    # so a party that wins both a state and some counties gets one consistent
+    # id across StateLevel.json and CountyLevel.json. Any third party that
+    # only shows up at the county level (never wins a whole state) gets a
+    # fresh UUID here.
+    for party_name, buckets in county_bucket_lists.items():
+        if party_name in ("Democrat", "Republican"):
+            continue
+        if any(buckets) and party_name not in third_party_ids:
+            third_party_ids[party_name] = str(_uuid.uuid4())
+        if party_name in third_party_ids:
+            party_cand_id[party_name] = third_party_ids[party_name]
+
+    county_regions = []
+    for party_name, buckets in county_bucket_lists.items():
+        cand_id = party_cand_id.get(party_name)
+        if cand_id is None:
+            continue  # third party with no counties at all — skip entirely
+        for bucket_idx, county_list in enumerate(buckets):
+            margin = 6 - bucket_idx
+            for county_code in county_list:
+                # county_code here is the CSV's "County__State_Code" value
+                # (e.g. "Autauga__AL"); YAPms needs its own compact id
+                # (e.g. "Autauga01"), which only exists if the CSV was run
+                # through yapms.py's YAPms__Code column first.
+                yapms_id = code_to_yapms.get(county_code)
+                if yapms_id is None:
+                    continue
+                county_regions.append({
+                    "id":          yapms_id,
+                    "value":       1,
+                    "permaVal":    1,
+                    "locked":      False,
+                    "permaLocked": False,
+                    "disabled":    False,
+                    "candidates":  [{"id": cand_id, "count": 1, "margin": margin}],
+                })
+
+    # Ties get the built-in tossup id and a neutral margin.
+    for county_code in tie:
+        yapms_id = code_to_yapms.get(county_code)
+        if yapms_id is None:
+            continue
+        county_regions.append({
+            "id":          yapms_id,
+            "value":       1,
+            "permaVal":    1,
+            "locked":      False,
+            "permaLocked": False,
+            "disabled":    False,
+            "candidates":  [{"id": "", "count": 1, "margin": 0}],
+        })
+
+    county_regions.sort(key=lambda r: r["id"])
+
+    county_candidates = [
+        {
+            "id":           "0",
+            "name":         "Democrat" if not switchColors else "Republican",
+            "defaultCount": 0,
+            "margins":      [{"color": c} for c in COUNTY_MARGIN_COLORS["Democrat"]],
+        },
+        {
+            "id":           "1",
+            "name":         "Republican" if not switchColors else "Democrat",
+            "defaultCount": 0,
+            "margins":      [{"color": c} for c in COUNTY_MARGIN_COLORS["Republican"]],
+        },
+    ]
+    for party_name in ("Wallace", "Perot", "Unpledged", "Other"):
+        cand_id = party_cand_id.get(party_name)
+        if cand_id is None:
+            continue
+        county_candidates.append({
+            "id":           cand_id,
+            "name":         party_name,
+            "defaultCount": 0,
+            "margins":      [{"color": c} for c in COUNTY_MARGIN_COLORS[party_name]],
+        })
+
+    yapms_county = {
+        "map": {
+            "country": "usa",
+            "type":    "counties",
+            "year":    str(yapmscountyyear),
+            "variant": "blank",
+        },
+        "tossup": {
+            "id":           "",
+            "name":         "Tossup",
+            "defaultCount": 0,
+            "margins":      [{"color": "#cccccc"}],
+        },
+        "candidates": county_candidates,
+        "regions":    county_regions,
+    }
+
+    # Only worth writing if we actually had YAPms codes to translate county
+    # ids against — otherwise county_regions would be empty. The frontend
+    # hides the download button in that case (see hasYapmsColumn below).
+    if has_yapms_column:
+        with open(os.path.join(BASE_DIR, "CountyLevel.json"), "w", encoding="utf-8") as f:
+            json.dump(yapms_county, f, indent=2)
+
     # ── Build final MapChart JSON output ───────────────────────────────────────
     if switchColors:
         output = {"groups": {
@@ -1037,6 +1197,10 @@ def run_scraper(year, progress_queue, otherAsDem=False, otherAsRep=False, state_
             "#d4c4dc": {"label": "Tie",                "paths": tie},
         }}
 
+    # Tells the frontend whether a county-level YAPms JSON was actually
+    # produced above (only possible when the CSV has a YAPms__Code column).
+    output["hasYapmsColumn"] = has_yapms_column
+
     progress_queue.put({"type": "done", "data": output})
 
 
@@ -1082,6 +1246,19 @@ def download_state_json():
         mimetype='application/json',
         as_attachment=True,
         download_name='StateLevel.json'
+    )
+
+
+@app.route('/api/download-yapms-county-json')
+def download_county_json():
+    """Serve CountyLevel.json as a file download."""
+    if not os.path.exists(os.path.join(BASE_DIR, 'CountyLevel.json')):
+        return jsonify({"error": "No CountyLevel.json available yet. Generate an election first."}), 404
+    return send_file(
+        os.path.join(BASE_DIR, 'CountyLevel.json'),
+        mimetype='application/json',
+        as_attachment=True,
+        download_name='CountyLevel.json'
     )
 
 
